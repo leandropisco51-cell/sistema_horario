@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chronos - Sistema de Horário Escolar Inteligente</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-calendar-alt"></i>
+                </div>
+                <h2>Chronos</h2>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="#" class="nav-link active" data-target="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-link" data-target="disciplinas">
+                    <i class="fa-solid fa-book"></i>
+                    <span>Disciplinas</span>
+                </a>
+                <a href="#" class="nav-link" data-target="professores">
+                    <i class="fa-solid fa-chalkboard-teacher"></i>
+                    <span>Professores</span>
+                </a>
+                <a href="#" class="nav-link" data-target="turmas">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Turmas</span>
+                </a>
+                <a href="#" class="nav-link" data-target="horarios">
+                    <i class="fa-solid fa-clock"></i>
+                    <span>Grade de Horários</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <p>&copy; 2026 Chronos Inc.</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="page-title">
+                    <h1 id="current-page-title">Dashboard</h1>
+                    <p id="current-page-subtitle">Visão geral do planejamento escolar</p>
+                </div>
+                <div class="user-profile">
+                    <button class="btn btn-primary" id="btn-quick-generate">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Horários
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Sections -->
+            <div class="content-wrapper">
+                
+                <!-- SECTION: DASHBOARD -->
+                <section id="section-dashboard" class="content-section active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon icon-blue">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Turmas</h3>
+                                <p class="stat-value" id="stat-turmas">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-purple">
+                                <i class="fa-solid fa-chalkboard-teacher"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Professores</h3>
+                                <p class="stat-value" id="stat-professores">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-pink">
+                                <i class="fa-solid fa-book"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Disciplinas</h3>
+                                <p class="stat-value" id="stat-disciplinas">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-green">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Status Grade</h3>
+                                <p class="stat-value" id="stat-status">Não Gerada</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-cards">
+                        <div class="dashboard-card card-large">
+                            <div class="card-header">
+                                <h3>Como funciona?</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="steps-flow">
+                                    <div class="step-item">
+                                        <div class="step-number">1</div>
+                                        <h4>Disciplinas</h4>
+                                        <p>Cadastre as matérias escolares (Matemática, História, etc.).</p>
+                                    </div>
+                                    <div class="step-item">
+                                        <div class="step-number">2</div>
+                                        <h4>Professores</h4>
+                                        <p>Adicione professores, associe disciplinas e marque suas disponibilidades horárias.</p>
+                                    </div>
+                                    <div class="step-item">
+                                        <div class="step-number">3</div>
+                                        <h4>Turmas</h4>
+                                        <p>Adicione as turmas e defina a carga horária semanal de cada disciplina.</p>
+                                    </div>
+                                    <div class="step-item">
+                                        <div class="step-number">4</div>
+                                        <h4>Gerar & Ajustar</h4>
+                                        <p>Gere os horários automaticamente e ajuste de forma interativa arrastando blocos!</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: DISCIPLINAS -->
+                <section id="section-disciplinas" class="content-section">
+                    <div class="section-actions">
+                        <button class="btn btn-primary" id="btn-add-disciplina">
+                            <i class="fa-solid fa-plus"></i> Nova Disciplina
+                        </button>
+                    </div>
+                    <div class="card table-card">
+                        <table class="data-table" id="table-disciplinas">
+                            <thead>
+                                <tr>
+                                    <th>Nome da Disciplina</th>
+                                    <th>Tempos Semanais</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dinâmico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- SECTION: PROFESSORES -->
+                <section id="section-professores" class="content-section">
+                    <div class="section-actions">
+                        <button class="btn btn-primary" id="btn-add-professor">
+                            <i class="fa-solid fa-plus"></i> Novo Professor
+                        </button>
+                    </div>
+                    <div class="card table-card">
+                        <table class="data-table" id="table-professores">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Disciplinas</th>
+                                    <th>Disponibilidade</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dinâmico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- SECTION: TURMAS -->
+                <section id="section-turmas" class="content-section">
+                    <div class="section-actions">
+                        <button class="btn btn-primary" id="btn-add-turma">
+                            <i class="fa-solid fa-plus"></i> Nova Turma
+                        </button>
+                    </div>
+                    <div class="card table-card">
+                        <table class="data-table" id="table-turmas">
+                            <thead>
+                                <tr>
+                                    <th>Nome da Turma</th>
+                                    <th>Carga Horária Definida</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dinâmico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- SECTION: HORARIOS (GRADE) -->
+                <section id="section-horarios" class="content-section">
+                    <div class="horarios-controls card">
+                        <div class="control-group">
+                            <label for="select-view-mode">Visualizar por:</label>
+                            <select id="select-view-mode" class="form-control">
+                                <option value="turma">Turma</option>
+                                <option value="professor">Professor</option>
+                            </select>
+                        </div>
+                        <div class="control-group" id="group-select-turma">
+                            <label for="select-timetable-turma">Selecione a Turma:</label>
+                            <select id="select-timetable-turma" class="form-control">
+                                <!-- Dinâmico -->
+                            </select>
+                        </div>
+                        <div class="control-group d-none" id="group-select-professor">
+                            <label for="select-timetable-professor">Selecione o Professor:</label>
+                            <select id="select-timetable-professor" class="form-control">
+                                <!-- Dinâmico -->
+                            </select>
+                        </div>
+                        <button class="btn btn-secondary" id="btn-generate-timetable">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Horário Automático
+                        </button>
+                        <button class="btn btn-outline" id="btn-reset-timetable">
+                            <i class="fa-solid fa-trash-can"></i> Limpar
+                        </button>
+                        <button class="btn" id="btn-export-excel" style="background-color: #107c41; color: white; border: none;">
+                            <i class="fa-solid fa-file-excel"></i> Exportar Excel
+                        </button>
+                    </div>
+
+                    <div id="generation-message" class="info-alert d-none">
+                        <!-- Alertas de sucesso/falha de geração -->
+                    </div>
+
+                    <!-- Timetable Grid -->
+                    <div class="timetable-outer-container card">
+                        <div class="timetable-grid" id="timetable-grid-root">
+                            <!-- Renderizado via JS -->
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: DISCIPLINA -->
+    <div class="modal-overlay" id="modal-disciplina">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="modal-disciplina-title">Adicionar Disciplina</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-disciplina">
+                    <input type="hidden" id="edit-disciplina-id">
+                    <div class="form-group">
+                        <label for="input-disciplina-nome">Nome da Disciplina</label>
+                        <input type="text" id="input-disciplina-nome" class="form-control" required placeholder="Ex: Matemática">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-disciplina-tempos">Quantidade de Tempos (Aulas semanais)</label>
+                        <input type="number" id="input-disciplina-tempos" class="form-control" required min="1" max="15" value="4">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PROFESSOR -->
+    <div class="modal-overlay" id="modal-professor">
+        <div class="modal-box modal-lg">
+            <div class="modal-header">
+                <h3 id="modal-professor-title">Adicionar Professor</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-professor">
+                    <input type="hidden" id="edit-professor-id">
+                    <div class="form-group">
+                        <label for="input-professor-nome">Nome do Professor</label>
+                        <input type="text" id="input-professor-nome" class="form-control" required placeholder="Ex: Prof. Carlos Silva">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Disciplinas Habilitadas</label>
+                        <div class="checkbox-group-grid" id="prof-disciplinas-checkboxes">
+                            <!-- Dinâmico -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Disponibilidade de Horários (Selecione os tempos livres)</label>
+                        <div class="availability-helper">
+                            <button type="button" class="btn btn-xs btn-outline" id="btn-select-all-avail">Marcar Todos</button>
+                            <button type="button" class="btn btn-xs btn-outline" id="btn-clear-all-avail">Limpar Todos</button>
+                        </div>
+                        <div class="availability-grid-container">
+                            <table class="availability-table" id="availability-table-editor">
+                                <thead>
+                                    <tr>
+                                        <th>Período / Aula</th>
+                                        <th>Segunda</th>
+                                        <th>Terça</th>
+                                        <th>Quarta</th>
+                                        <th>Quinta</th>
+                                        <th>Sexta</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Gerado dinamicamente para os tempos cadastrados -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TURMA -->
+    <div class="modal-overlay" id="modal-turma">
+        <div class="modal-box modal-md">
+            <div class="modal-header">
+                <h3 id="modal-turma-title">Adicionar Turma</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-turma">
+                    <input type="hidden" id="edit-turma-id">
+                    <div class="form-group">
+                        <label for="input-turma-nome">Nome da Turma / Ano</label>
+                        <input type="text" id="input-turma-nome" class="form-control" required placeholder="Ex: 1º Ano A">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Carga Horária Semanal (Aulas/Tempos por disciplina)</label>
+                        <div class="workload-inputs-list" id="turma-carga-horaria-inputs">
+                            <!-- Dinâmico para as disciplinas existentes -->
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Files -->
+    <script src="scheduler.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
