@@ -36,6 +36,13 @@ async function initData() {
 
 let activeConfig = JSON.parse(localStorage.getItem('chronos_config')) || DEFAULT_CONFIG;
 
+// Mock Data para iniciar com uma demonstração premium
+const MOCK_DISCIPLINAS = [
+    {
+        "id": "d_1",
+        "nome": "Matemática A",
+        "tempos": 2
+    },
     {
         "id": "d_2",
         "nome": "Projeto Integrador",
