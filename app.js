@@ -2476,14 +2476,57 @@ function renderAvailabilityEditor(profDisponibilidade = null) {
 
         tbody.appendChild(tr);
     }
+
+    // Atualizar checkboxes de dia da semana no cabeçalho
+    activeConfig.dias.forEach(dia => {
+        const headerCheckbox = document.querySelector(`#availability-table-editor thead .toggle-day-avail[data-day="${dia}"]`);
+        if (headerCheckbox) {
+            let allChecked = true;
+            for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
+                let isChecked = true;
+                if (profDisponibilidade && profDisponibilidade[dia]) {
+                    isChecked = profDisponibilidade[dia].includes(tempo);
+                }
+                if (!isChecked) {
+                    allChecked = false;
+                    break;
+                }
+            }
+            headerCheckbox.checked = allChecked;
+        }
+    });
 }
 
 // Helpers do Editor de Disponibilidade
 document.getElementById('btn-select-all-avail').addEventListener('click', () => {
     document.querySelectorAll('.avail-cell-select').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.toggle-day-avail').forEach(cb => cb.checked = true);
 });
 document.getElementById('btn-clear-all-avail').addEventListener('click', () => {
     document.querySelectorAll('.avail-cell-select').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.toggle-day-avail').forEach(cb => cb.checked = false);
+});
+
+// Listener para marcar/desmarcar todos de um dia da semana (coluna)
+document.querySelector('#availability-table-editor').addEventListener('change', (e) => {
+    if (e.target.classList.contains('toggle-day-avail')) {
+        const dia = e.target.getAttribute('data-day');
+        const checked = e.target.checked;
+        document.querySelectorAll(`#availability-table-editor tbody .avail-cell-select[data-dia="${dia}"]`).forEach(cb => {
+            cb.checked = checked;
+        });
+    }
+    
+    // Atualizar checkbox de dia se o usuário marcar/desmarcar individualmente
+    if (e.target.classList.contains('avail-cell-select')) {
+        const dia = e.target.getAttribute('data-dia');
+        const headerCheckbox = document.querySelector(`#availability-table-editor thead .toggle-day-avail[data-day="${dia}"]`);
+        if (headerCheckbox) {
+            const allCells = document.querySelectorAll(`#availability-table-editor tbody .avail-cell-select[data-dia="${dia}"]`);
+            const allChecked = Array.from(allCells).every(cb => cb.checked);
+            headerCheckbox.checked = allChecked;
+        }
+    }
 });
 
 window.editProfessor = function(id) {
