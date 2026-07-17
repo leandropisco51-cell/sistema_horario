@@ -2704,9 +2704,8 @@ selectTimetableProfessor.addEventListener('change', renderHorariosGrid);
 // Geração Automática
 document.getElementById('btn-generate-timetable').addEventListener('click', generateTimetableFlow);
 document.getElementById('btn-quick-generate').addEventListener('click', () => {
-    // Mudar para seção de horários e rodar a geração
+    // Mudar para seção de horários (apenas navega, sem gerar automaticamente)
     document.querySelector('.nav-link[data-target="horarios"]').click();
-    generateTimetableFlow();
 });
 
 // Salvar Horário da Turma Atual
@@ -2789,6 +2788,24 @@ function generateTimetableFlow() {
     if (!currentTurmaId) {
         showGenerationMessage('Nenhuma turma selecionada para gerar o horário.', 'danger');
         return;
+    }
+
+    // Verificar se já existe um horário salvo para esta turma no localStorage
+    const saved = localStorage.getItem(`chronos_timetable_${currentTurmaId}`);
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        let hasSavedLessons = false;
+        activeConfig.dias.forEach(dia => {
+            if (parsed[dia] && parsed[dia].some(slot => slot !== null)) {
+                hasSavedLessons = true;
+            }
+        });
+        
+        if (hasSavedLessons) {
+            if (!confirm('Esta turma já possui um horário salvo. Deseja realmente gerar um novo horário e substituir a versão atual? (Observação: Para confirmar a substituição no banco de dados, você precisará clicar em "Salvar Horário" depois)')) {
+                return;
+            }
+        }
     }
 
     const scheduler = new window.TimetableScheduler(state.turmas, state.professores, state.disciplinas, activeConfig);
