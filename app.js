@@ -2742,19 +2742,25 @@ function generateTimetableFlow() {
         return;
     }
 
+    const currentTurmaId = selectTimetableTurma.value;
+    if (!currentTurmaId) {
+        showGenerationMessage('Nenhuma turma selecionada para gerar o horário.', 'danger');
+        return;
+    }
+
     const scheduler = new window.TimetableScheduler(state.turmas, state.professores, state.disciplinas, activeConfig);
-    const result = scheduler.generate();
+    const result = scheduler.generate(currentTurmaId, state.timetable);
 
     if (result.success) {
-        state.timetable = result.timetable;
-        renderHorariosView();
-        showGenerationMessage('Grade de horários gerada em memória com sucesso! Clique em "Salvar Horário" para cada turma.', 'success');
+        state.timetable[currentTurmaId] = result.timetable[currentTurmaId];
+        renderHorariosGrid();
+        showGenerationMessage('Grade de horários gerada em memória para a turma atual! Lembre-se de clicar em "Salvar Horário".', 'success');
     } else if (result.isPartial) {
-        state.timetable = result.timetable;
-        renderHorariosView();
-        showGenerationMessage(`Grade gerada parcialmente em memória! Alocamos ${result.allocated} de ${result.total} aulas. Ajuste e salve por turma!`, 'warning');
+        state.timetable[currentTurmaId] = result.timetable[currentTurmaId];
+        renderHorariosGrid();
+        showGenerationMessage(`Grade gerada parcialmente em memória! Alocamos ${result.allocated} de ${result.total} aulas. Ajuste e clique em "Salvar Horário"!`, 'warning');
     } else {
-        showGenerationMessage('Não foi possível gerar um horário de forma automática. Verifique se os professores possuem disponibilidades cadastradas.', 'danger');
+        showGenerationMessage('Não foi possível gerar um horário de forma automática para esta turma. Verifique se os professores possuem disponibilidades cadastradas.', 'danger');
     }
 }
 

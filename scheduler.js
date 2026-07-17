@@ -15,9 +15,13 @@ class TimetableScheduler {
         });
     }
 
-    generate() {
+    generate(targetTurmaId, existingTimetable) {
         let lessonsToSchedule = [];
-        this.turmas.forEach(turma => {
+        
+        // Se targetTurmaId for passado, agendar apenas para ela
+        const activeTurmas = targetTurmaId ? this.turmas.filter(t => t.id === targetTurmaId) : this.turmas;
+        
+        activeTurmas.forEach(turma => {
             Object.entries(turma.cargaHoraria || {}).forEach(([disciplinaId, horas]) => {
                 const horasInt = parseInt(horas, 10) || 0;
                 const professoresDisponiveis = this.professoresPorDisciplina[disciplinaId] || [];
@@ -53,6 +57,29 @@ class TimetableScheduler {
                 teacherSchedule[p.id][d] = Array(this.config.tempos).fill(null);
             });
         });
+
+        // Preencher horários existentes das outras turmas para bloquear professores
+        if (targetTurmaId && existingTimetable) {
+            this.turmas.forEach(t => {
+                if (t.id === targetTurmaId) return; // Ignora a turma alvo, pois vamos gerá-la do zero
+                
+                const agenda = existingTimetable[t.id];
+                if (agenda) {
+                    this.config.dias.forEach(dia => {
+                        if (agenda[dia]) {
+                            agenda[dia].forEach((slot, tempo) => {
+                                if (slot && tempo < this.config.tempos) {
+                                    timetable[t.id][dia][tempo] = JSON.parse(JSON.stringify(slot));
+                                    if (teacherSchedule[slot.professorId]) {
+                                        teacherSchedule[slot.professorId][dia][tempo] = t.id;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
 
         // Variáveis para rastrear o melhor resultado parcial para evitar falha total
         let bestScheduledCount = 0;
