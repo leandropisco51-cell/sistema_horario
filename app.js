@@ -1,5 +1,5 @@
 // ----------------------------------------------------
-// STATE MANAGEMENT & LOCAL STORAGE
+// STATE MANAGEMENT & DATA LOADING
 // ----------------------------------------------------
 
 const STORAGE_KEYS = {
@@ -10,21 +10,32 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_CONFIG = {
-    dias: [2, 3, 4, 5, 6], // 2=Segunda, 6=Sexta
+    dias: [2, 3, 4, 5, 6],
     diasNomes: { 2: 'Segunda', 3: 'Terça', 4: 'Quarta', 5: 'Quinta', 6: 'Sexta' },
-    tempos: 7,
-    temposHorarios: ["07:10 - 08:00", "08:00 - 08:50", "08:50 - 09:40", "10:10 - 11:00", "11:00 - 11:50", "11:50 - 12:40", "12:40 - 13:30"]
+    tempos: 8,
+    temposHorarios: ["07:10 - 08:00", "08:00 - 08:50", "08:50 - 09:40", "10:10 - 11:00", "11:00 - 11:50", "11:50 - 12:40", "12:40 - 13:30", "13:30 - 14:20"]
 };
+
+// Carrega dados iniciais do arquivo JSON se o localStorage estiver vazio
+async function initData() {
+    if (!localStorage.getItem(STORAGE_KEYS.DISCIPLINAS)) {
+        try {
+            const response = await fetch('horario_rag.json');
+            const data = await response.json();
+            
+            localStorage.setItem(STORAGE_KEYS.DISCIPLINAS, JSON.stringify(data.disciplinas));
+            localStorage.setItem(STORAGE_KEYS.PROFESSORES, JSON.stringify(data.professores));
+            localStorage.setItem(STORAGE_KEYS.TURMAS, JSON.stringify(data.turmas));
+            localStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(data.timetable));
+            localStorage.setItem('chronos_config', JSON.stringify(data.config || DEFAULT_CONFIG));
+        } catch (err) {
+            console.error("Erro ao carregar dados iniciais:", err);
+        }
+    }
+}
 
 let activeConfig = JSON.parse(localStorage.getItem('chronos_config')) || DEFAULT_CONFIG;
 
-// Mock Data para iniciar com uma demonstração premium
-const MOCK_DISCIPLINAS = [
-    {
-        "id": "d_1",
-        "nome": "Matemática A",
-        "tempos": 2
-    },
     {
         "id": "d_2",
         "nome": "Projeto Integrador",
@@ -3416,6 +3427,20 @@ window.addEventListener('DOMContentLoaded', () => {
     // Evento de Exportação
     document.getElementById('btn-export-excel').addEventListener('click', exportTimetableToExcel);
 
+    // Botão de Tema
+    const themeBtn = document.getElementById('btn-toggle-theme');
+    themeBtn.addEventListener('click', () => {
+        document.body.classList.toggle('light-mode');
+        const icon = themeBtn.querySelector('i');
+        icon.classList.toggle('fa-sun');
+        icon.classList.toggle('fa-moon');
+    });
+
+    // Eventos de Exportação/Importação de Dados
+    document.getElementById('btn-export-data').addEventListener('click', exportData);
+    document.getElementById('btn-import-data').addEventListener('click', () => document.getElementById('import-data-file').click());
+    document.getElementById('import-data-file').addEventListener('change', importData);
+
     // Eventos de Importação RAG
     const importTrigger = document.getElementById('btn-import-rag-trigger');
     const importInput = document.getElementById('input-import-rag');
@@ -3425,3 +3450,39 @@ window.addEventListener('DOMContentLoaded', () => {
         importInput.addEventListener('change', handleRAGImport);
     }
 });
+
+// Funções de Persistência Manual
+function exportData() {
+    const data = {
+        disciplinas: localStorage.getItem(STORAGE_KEYS.DISCIPLINAS),
+        professores: localStorage.getItem(STORAGE_KEYS.PROFESSORES),
+        turmas: localStorage.getItem(STORAGE_KEYS.TURMAS),
+        timetable: localStorage.getItem(STORAGE_KEYS.TIMETABLE)
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup_horario_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+}
+
+function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            localStorage.setItem(STORAGE_KEYS.DISCIPLINAS, data.disciplinas);
+            localStorage.setItem(STORAGE_KEYS.PROFESSORES, data.professores);
+            localStorage.setItem(STORAGE_KEYS.TURMAS, data.turmas);
+            localStorage.setItem(STORAGE_KEYS.TIMETABLE, data.timetable);
+            alert('Dados importados com sucesso! A página será recarregada.');
+            location.reload();
+        } catch (err) {
+            alert('Erro ao importar arquivo: formato inválido.');
+        }
+    };
+    reader.readAsText(file);
+}

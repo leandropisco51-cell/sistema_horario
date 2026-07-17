@@ -81,77 +81,62 @@ class TimetableScheduler {
             });
         }
 
-        // Variáveis para rastrear o melhor resultado parcial para evitar falha total
+        // Variáveis para rastrear o melhor resultado parcial
         let bestScheduledCount = 0;
-        let bestTimetable = JSON.parse(JSON.stringify(timetable));
-        let bestTeacherSchedule = JSON.parse(JSON.stringify(teacherSchedule));
+        let bestTimetable = null;
+        let bestTeacherSchedule = null;
+
+        // Função auxiliar para copiar estrutura da grade apenas quando necessário
+        const cloneTimetable = (t) => JSON.parse(JSON.stringify(t));
 
         let steps = 0;
-        const MAX_STEPS = 30000; // Impede travamento do navegador (executa em ~50-100ms)
+        const MAX_STEPS = 50000;
 
         const solve = (index) => {
             steps++;
-            if (steps > MAX_STEPS) {
-                return false; // Forçar parada
-            }
+            if (steps > MAX_STEPS) return false;
 
-            // Rastrear melhor solução parcial
             if (index > bestScheduledCount) {
                 bestScheduledCount = index;
-                bestTimetable = JSON.parse(JSON.stringify(timetable));
-                bestTeacherSchedule = JSON.parse(JSON.stringify(teacherSchedule));
+                bestTimetable = cloneTimetable(timetable);
+                bestTeacherSchedule = cloneTimetable(teacherSchedule);
             }
 
-            if (index >= lessonsToSchedule.length) {
-                return true; 
-            }
+            if (index >= lessonsToSchedule.length) return true;
 
             const lesson = lessonsToSchedule[index];
             const { turmaId, disciplinaId, professoresPossiveis } = lesson;
 
             for (let prof of professoresPossiveis) {
-                const slots = [];
                 for (let dia of this.config.dias) {
-                    for (let tempo = 0; tempo < this.config.tempos; tempo++) {
-                        slots.push({ dia, tempo });
-                    }
-                }
-                
-                // Variabilidade dos dias e tempos
-                slots.sort(() => Math.random() - 0.5);
-
-                for (let slot of slots) {
-                    const { dia, tempo } = slot;
-
-                    if (timetable[turmaId][dia][tempo] !== null) continue;
-
                     const disponibilidadeProf = prof.disponibilidade && prof.disponibilidade[dia];
-                    if (!disponibilidadeProf || !disponibilidadeProf.includes(tempo)) continue;
+                    if (!disponibilidadeProf) continue;
 
-                    if (teacherSchedule[prof.id][dia][tempo] !== null) continue;
+                    for (let tempo = 0; tempo < this.config.tempos; tempo++) {
+                        if (!disponibilidadeProf.includes(tempo)) continue;
+                        if (timetable[turmaId][dia][tempo] !== null) continue;
+                        if (teacherSchedule[prof.id][dia][tempo] !== null) continue;
 
-                    let aulasMesmaMateriaNoDia = 0;
-                    for (let t = 0; t < this.config.tempos; t++) {
-                        if (timetable[turmaId][dia][t] && timetable[turmaId][dia][t].disciplinaId === disciplinaId) {
-                            aulasMesmaMateriaNoDia++;
+                        let aulasMesmaMateriaNoDia = 0;
+                        for (let t = 0; t < this.config.tempos; t++) {
+                            if (timetable[turmaId][dia][t] && timetable[turmaId][dia][t].disciplinaId === disciplinaId) {
+                                aulasMesmaMateriaNoDia++;
+                            }
                         }
+                        if (aulasMesmaMateriaNoDia >= 3) continue;
+
+                        // Alocação Direta (sem clones pesados)
+                        timetable[turmaId][dia][tempo] = { disciplinaId, professorId: prof.id };
+                        teacherSchedule[prof.id][dia][tempo] = turmaId;
+
+                        if (solve(index + 1)) return true;
+
+                        // Backtrack (reversão direta)
+                        timetable[turmaId][dia][tempo] = null;
+                        teacherSchedule[prof.id][dia][tempo] = null;
                     }
-                    if (aulasMesmaMateriaNoDia >= 3) continue; 
-
-                    // Alocação
-                    timetable[turmaId][dia][tempo] = { disciplinaId, professorId: prof.id };
-                    teacherSchedule[prof.id][dia][tempo] = turmaId;
-
-                    if (solve(index + 1)) {
-                        return true;
-                    }
-
-                    // Backtrack
-                    timetable[turmaId][dia][tempo] = null;
-                    teacherSchedule[prof.id][dia][tempo] = null;
                 }
             }
-
             return false;
         };
 

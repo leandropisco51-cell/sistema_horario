@@ -66,7 +66,10 @@
                     <h1 id="current-page-title">Dashboard</h1>
                     <p id="current-page-subtitle">Visão geral do planejamento escolar</p>
                 </div>
-                <div class="user-profile">
+                <div class="user-profile" style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn btn-outline" id="btn-toggle-theme" style="padding: 8px 12px;">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
                     <button class="btn btn-primary" id="btn-quick-generate">
                         <i class="fa-solid fa-clock"></i> Grade de Horários
                     </button>
@@ -253,6 +256,13 @@
                         </button>
                         <button class="btn btn-outline" id="btn-reset-timetable">
                             <i class="fa-solid fa-trash-can"></i> Limpar
+                        </button>
+                        <button class="btn" id="btn-export-data" style="background-color: #3b82f6; color: white; border: none;">
+                            <i class="fa-solid fa-download"></i> Exportar Dados
+                        </button>
+                        <input type="file" id="import-data-file" style="display:none;" accept=".json">
+                        <button class="btn" id="btn-import-data" style="background-color: #f59e0b; color: white; border: none;">
+                            <i class="fa-solid fa-upload"></i> Importar Dados
                         </button>
                         <button class="btn" id="btn-export-excel" style="background-color: #107c41; color: white; border: none;">
                             <i class="fa-solid fa-file-excel"></i> Exportar Excel
