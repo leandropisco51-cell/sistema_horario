@@ -16,6 +16,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
+    <!-- Ambient glow decorative elements -->
+    <div class="ambient-glow orb-1"></div>
+    <div class="ambient-glow orb-2"></div>
+    <div class="ambient-glow orb-3"></div>
+
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -239,6 +244,12 @@
                         </div>
                         <button class="btn btn-secondary" id="btn-generate-timetable">
                             <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Horário Automático
+                        </button>
+                        <button class="btn" id="btn-save-current-timetable" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);">
+                            <i class="fa-solid fa-floppy-disk"></i> Salvar Horário
+                        </button>
+                        <button class="btn btn-outline" id="btn-compact-timetable">
+                            <i class="fa-solid fa-arrows-left-right-to-line"></i> Retirar Tempos Vagos
                         </button>
                         <button class="btn btn-outline" id="btn-reset-timetable">
                             <i class="fa-solid fa-trash-can"></i> Limpar

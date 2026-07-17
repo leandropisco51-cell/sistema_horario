@@ -2135,7 +2135,22 @@ function initData() {
     state.disciplinas = JSON.parse(localStorage.getItem(STORAGE_KEYS.DISCIPLINAS)) || MOCK_DISCIPLINAS;
     state.professores = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFESSORES)) || MOCK_PROFESSORES;
     state.turmas = JSON.parse(localStorage.getItem(STORAGE_KEYS.TURMAS)) || MOCK_TURMAS;
-    state.timetable = JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMETABLE)) || MOCK_TIMETABLE;
+    
+    // Carregar horários de forma individual por turma
+    state.timetable = {};
+    state.turmas.forEach(t => {
+        const saved = localStorage.getItem(`chronos_timetable_${t.id}`);
+        if (saved) {
+            state.timetable[t.id] = JSON.parse(saved);
+        } else if (MOCK_TIMETABLE[t.id]) {
+            state.timetable[t.id] = MOCK_TIMETABLE[t.id];
+        } else {
+            state.timetable[t.id] = {};
+            activeConfig.dias.forEach(dia => {
+                state.timetable[t.id][dia] = Array(activeConfig.tempos).fill(null);
+            });
+        }
+    });
     
     // Migração de dados antigos sem o campo tempos
     state.disciplinas.forEach(d => {
@@ -2151,7 +2166,6 @@ function saveToStorage() {
     localStorage.setItem(STORAGE_KEYS.DISCIPLINAS, JSON.stringify(state.disciplinas));
     localStorage.setItem(STORAGE_KEYS.PROFESSORES, JSON.stringify(state.professores));
     localStorage.setItem(STORAGE_KEYS.TURMAS, JSON.stringify(state.turmas));
-    localStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(state.timetable));
     localStorage.setItem('chronos_config', JSON.stringify(activeConfig));
     updateDashboardStats();
 }
@@ -2652,12 +2666,63 @@ document.getElementById('btn-quick-generate').addEventListener('click', () => {
     generateTimetableFlow();
 });
 
-document.getElementById('btn-reset-timetable').addEventListener('click', () => {
-    if (confirm('Deseja limpar todos os horários planejados?')) {
-        state.timetable = {};
-        saveToStorage();
+// Salvar Horário da Turma Atual
+document.getElementById('btn-save-current-timetable').addEventListener('click', () => {
+    const currentTurmaId = selectTimetableTurma.value;
+    if (!currentTurmaId) {
+        showGenerationMessage('Nenhuma turma selecionada para salvar.', 'danger');
+        return;
+    }
+    localStorage.setItem(`chronos_timetable_${currentTurmaId}`, JSON.stringify(state.timetable[currentTurmaId] || {}));
+    showGenerationMessage('Horário da turma atual salvo com sucesso!', 'success');
+});
+
+// Retirar Tempos Vagos da Turma Atual (Compactar)
+document.getElementById('btn-compact-timetable').addEventListener('click', () => {
+    const currentTurmaId = selectTimetableTurma.value;
+    if (!currentTurmaId) {
+        showGenerationMessage('Nenhuma turma selecionada para compactar.', 'danger');
+        return;
+    }
+    
+    if (!state.timetable[currentTurmaId]) return;
+    
+    let changed = false;
+    activeConfig.dias.forEach(dia => {
+        const daySchedule = state.timetable[currentTurmaId][dia];
+        if (daySchedule && Array.isArray(daySchedule)) {
+            // Remove null values and compact them to the beginning of the day
+            const compacted = daySchedule.filter(slot => slot !== null);
+            while (compacted.length < activeConfig.tempos) {
+                compacted.push(null);
+            }
+            
+            // Check if there was any actual change
+            if (JSON.stringify(daySchedule) !== JSON.stringify(compacted)) {
+                state.timetable[currentTurmaId][dia] = compacted;
+                changed = true;
+            }
+        }
+    });
+    
+    if (changed) {
         renderHorariosGrid();
-        showGenerationMessage('Grade de horários limpa.', 'success');
+        showGenerationMessage('Tempos vagos retirados com sucesso! Lembre-se de clicar em "Salvar Horário".', 'warning');
+    } else {
+        showGenerationMessage('Não há tempos vagos para retirar na turma selecionada.', 'info');
+    }
+});
+
+document.getElementById('btn-reset-timetable').addEventListener('click', () => {
+    const currentTurmaId = selectTimetableTurma.value;
+    if (!currentTurmaId) return;
+    if (confirm('Deseja limpar o horário planejado para a turma atual?')) {
+        state.timetable[currentTurmaId] = {};
+        activeConfig.dias.forEach(dia => {
+            state.timetable[currentTurmaId][dia] = Array(activeConfig.tempos).fill(null);
+        });
+        renderHorariosGrid();
+        showGenerationMessage('Horários da turma limpos em memória. Lembre-se de clicar em "Salvar Horário".', 'warning');
     }
 });
 
@@ -2682,14 +2747,12 @@ function generateTimetableFlow() {
 
     if (result.success) {
         state.timetable = result.timetable;
-        saveToStorage();
         renderHorariosView();
-        showGenerationMessage('Grade de horários gerada automaticamente com sucesso sem conflitos!', 'success');
+        showGenerationMessage('Grade de horários gerada em memória com sucesso! Clique em "Salvar Horário" para cada turma.', 'success');
     } else if (result.isPartial) {
         state.timetable = result.timetable;
-        saveToStorage();
         renderHorariosView();
-        showGenerationMessage(`Grade de horários gerada parcialmente! Alocamos ${result.allocated} de ${result.total} aulas sem conflitos. Ajuste o restante arrastando os blocos!`, 'warning');
+        showGenerationMessage(`Grade gerada parcialmente em memória! Alocamos ${result.allocated} de ${result.total} aulas. Ajuste e salve por turma!`, 'warning');
     } else {
         showGenerationMessage('Não foi possível gerar um horário de forma automática. Verifique se os professores possuem disponibilidades cadastradas.', 'danger');
     }
@@ -2991,9 +3054,8 @@ function moveLesson(dragData, targetTurmaId, targetDia, targetTempo) {
     state.timetable[targetTurmaId][targetDia][targetTempo] = { disciplinaId, professorId };
     state.timetable[targetTurmaId][fromDia][fromTempo] = targetContent; // se targetContent for null, apenas limpa a origem
 
-    saveToStorage();
     renderHorariosGrid();
-    showGenerationMessage('Horário ajustado com sucesso!', 'success');
+    showGenerationMessage('Horário ajustado na memória! Clique em "Salvar Horário" para confirmar.', 'warning');
 }
 
 // ----------------------------------------------------
