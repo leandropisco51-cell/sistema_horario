@@ -3153,70 +3153,163 @@ function exportTimetableToExcel() {
     }
 
     try {
-        const wb = XLSX.utils.book_new();
-        const usedSheetNames = new Set();
+        let html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+        <meta charset="utf-8">
+        <!--[if gte mso 9]>
+        <xml>
+        <x:ExcelWorkbook>
+        <x:ExcelWorksheets>
+        <x:ExcelWorksheet>
+        <x:Name>Grade de Horários</x:Name>
+        <x:WorksheetOptions>
+        <x:DisplayGridlines/>
+        </x:WorksheetOptions>
+        </x:ExcelWorksheet>
+        </x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          body {
+            background-color: #090d16;
+            color: #f8fafc;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            padding: 24px;
+          }
+          .title-header {
+            font-size: 22px;
+            font-weight: 800;
+            color: #ffffff;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #3b82f6;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #3b82f6;
+            margin-top: 36px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          h3 {
+            color: #f8fafc;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 20px;
+            margin-bottom: 8px;
+          }
+          table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 32px;
+            background-color: #131929;
+          }
+          th {
+            background-color: #0f1422;
+            color: #94a3b8;
+            font-weight: 700;
+            border: 1px solid #1e293b;
+            padding: 12px;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+          }
+          td {
+            border: 1px solid #1e293b;
+            padding: 12px;
+            font-size: 12px;
+            color: #f8fafc;
+            text-align: center;
+            background-color: #131929;
+            width: 180px;
+            height: 54px;
+          }
+          .time-cell {
+            background-color: #0f1422;
+            color: #94a3b8;
+            font-weight: 700;
+            width: 140px;
+          }
+          .recreio-cell {
+            background-color: #0f1422;
+            color: #475569;
+            font-style: italic;
+            font-weight: 700;
+            text-align: center;
+          }
+          /* Cores de bordas idênticas às disciplinas no app */
+          .lesson-1 { border-left: 4px solid #ef4444; background-color: #1b161c; }
+          .lesson-2 { border-left: 4px solid #3b82f6; background-color: #141b2e; }
+          .lesson-3 { border-left: 4px solid #10b981; background-color: #112320; }
+          .lesson-4 { border-left: 4px solid #f59e0b; background-color: #262117; }
+          .lesson-5 { border-left: 4px solid #8b5cf6; background-color: #1d172e; }
+          .lesson-6 { border-left: 4px solid #ec4899; background-color: #271424; }
+          .lesson-7 { border-left: 4px solid #14b8a6; background-color: #102324; }
+          .lesson-8 { border-left: 4px solid #f97316; background-color: #271b17; }
+          .lesson-9 { border-left: 4px solid #6366f1; background-color: #16182e; }
+          .lesson-10 { border-left: 4px solid #d946ef; background-color: #25142e; }
+        </style>
+        </head>
+        <body>
+          <div class="title-header">Chronos - Grade de Horários Escolares</div>
+        `;
 
-        const getSafeSheetName = (name, prefix = "") => {
-            let clean = (prefix + name)
-                .replace(/[:\/\\\?\*\[\]]/g, '') // Remove caracteres inválidos
-                .trim();
-            
-            // Garantir que cabe no limite de 31 caracteres do Excel
-            let candidate = clean.substring(0, 31);
-            let counter = 1;
-            
-            while (usedSheetNames.has(candidate.toLowerCase())) {
-                const suffix = ` (${counter})`;
-                candidate = clean.substring(0, 31 - suffix.length) + suffix;
-                counter++;
-            }
-            usedSheetNames.add(candidate.toLowerCase());
-            return candidate;
-        };
-
-        // 1. Criar planilha para cada Turma
+        // 1. Planilhas de Turmas
+        html += `<div class="section-title">Horários por Turma</div>`;
         state.turmas.forEach(turma => {
-            const data = [];
-            
-            // Cabeçalho
-            const headers = ["Horário", "Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
-            data.push(headers);
+            html += `<h3>Turma: ${turma.nome}</h3>`;
+            html += `<table>`;
+            html += `<thead><tr><th>Horário</th><th>Segunda</th><th>Terça</th><th>Quarta</th><th>Quinta</th><th>Sexta</th></tr></thead>`;
+            html += `<tbody>`;
 
-            // Linhas por Tempo
             for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
-                const row = [`${tempo + 1}º Tempo (${activeConfig.temposHorarios[tempo]})`];
-                
+                if (tempo === 3) {
+                    html += `<tr><td class="time-cell">09:40 - 10:10</td><td colspan="5" class="recreio-cell">☕ INTERVALO / RECREIO</td></tr>`;
+                }
+
+                html += `<tr>`;
+                html += `<td class="time-cell">${tempo + 1}º Tempo<br>${activeConfig.temposHorarios[tempo]}</td>`;
+
                 activeConfig.dias.forEach(dia => {
                     const agendaTurma = state.timetable[turma.id];
                     const aula = agendaTurma && agendaTurma[dia] ? agendaTurma[dia][tempo] : null;
                     if (aula) {
                         const disc = state.disciplinas.find(d => d.id === aula.disciplinaId);
                         const prof = state.professores.find(p => p.id === aula.professorId);
-                        row.push(`${disc ? disc.nome : 'Sem Nome'} (${prof ? prof.nome : 'Sem Prof'})`);
+                        const styleClass = `lesson-${(aula.disciplinaId.charCodeAt(1) % 10) + 1}`;
+                        html += `<td class="${styleClass}"><strong>${disc ? disc.nome : 'Sem Nome'}</strong><br>${prof ? prof.nome : 'Sem Prof'}</td>`;
                     } else {
-                        row.push("-");
+                        html += `<td>-</td>`;
                     }
                 });
-                data.push(row);
-            }
 
-            const ws = XLSX.utils.aoa_to_sheet(data);
-            ws['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }];
-            
-            const sheetName = getSafeSheetName(turma.nome, "Turma - ");
-            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                html += `</tr>`;
+            }
+            html += `</tbody></table>`;
         });
 
-        // 2. Criar planilha para cada Professor
+        // 2. Planilhas de Professores
+        html += `<div class="section-title">Horários por Professor</div>`;
         state.professores.forEach(prof => {
-            const data = [];
-            
-            const headers = ["Horário", "Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
-            data.push(headers);
+            html += `<h3>Professor: ${prof.nome}</h3>`;
+            html += `<table>`;
+            html += `<thead><tr><th>Horário</th><th>Segunda</th><th>Terça</th><th>Quarta</th><th>Quinta</th><th>Sexta</th></tr></thead>`;
+            html += `<tbody>`;
 
             for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
-                const row = [`${tempo + 1}º Tempo (${activeConfig.temposHorarios[tempo]})`];
-                
+                if (tempo === 3) {
+                    html += `<tr><td class="time-cell">09:40 - 10:10</td><td colspan="5" class="recreio-cell">☕ INTERVALO / RECREIO</td></tr>`;
+                }
+
+                html += `<tr>`;
+                html += `<td class="time-cell">${tempo + 1}º Tempo<br>${activeConfig.temposHorarios[tempo]}</td>`;
+
                 activeConfig.dias.forEach(dia => {
                     let aulaEncontrada = null;
                     let turmaDaAula = null;
@@ -3231,29 +3324,35 @@ function exportTimetableToExcel() {
 
                     if (aulaEncontrada) {
                         const disc = state.disciplinas.find(d => d.id === aulaEncontrada.disciplinaId);
-                        row.push(`${disc ? disc.nome : 'Sem Nome'} (${turmaDaAula ? turmaDaAula.nome : 'Turma'})`);
+                        const styleClass = `lesson-${(aulaEncontrada.disciplinaId.charCodeAt(1) % 10) + 1}`;
+                        html += `<td class="${styleClass}"><strong>${disc ? disc.nome : 'Sem Nome'}</strong><br>${turmaDaAula ? turmaDaAula.nome : 'Turma'}</td>`;
                     } else {
                         const isAvailable = prof.disponibilidade && prof.disponibilidade[dia] && prof.disponibilidade[dia].includes(tempo);
-                        row.push(isAvailable ? "-" : "Indisponível");
+                        html += isAvailable ? `<td>-</td>` : `<td style="color:#ef4444; background-color:#1c131a;">Indisponível</td>`;
                     }
                 });
-                data.push(row);
-            }
 
-            const ws = XLSX.utils.aoa_to_sheet(data);
-            ws['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }];
-            
-            const cleanProfName = prof.nome.replace(/Profª?\.\s*/i, ''); // Remove prefixo "Prof." ou "Profª." do nome da aba
-            const sheetName = getSafeSheetName(cleanProfName, "Prof - ");
-            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                html += `</tr>`;
+            }
+            html += `</tbody></table>`;
         });
 
-        // Salvar arquivo
-        XLSX.writeFile(wb, "Chronos_Horarios_Escolares.xlsx");
-        showGenerationMessage('Grade de horários exportada para o Excel com sucesso!', 'success');
+        html += `</body></html>`;
+
+        // Gerar o download
+        const blob = new Blob(["\ufeff" + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Chronos_Horarios_Escolares.xls';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        showGenerationMessage('Grade de horários exportada com visual premium para o Excel!', 'success');
     } catch (err) {
         console.error(err);
-        showGenerationMessage('Falha ao gerar e salvar arquivo do Excel.', 'danger');
+        showGenerationMessage('Falha ao exportar grade de horários.', 'danger');
     }
 }
 
