@@ -16,24 +16,6 @@ const DEFAULT_CONFIG = {
     temposHorarios: ["07:10 - 08:00", "08:00 - 08:50", "08:50 - 09:40", "10:10 - 11:00", "11:00 - 11:50", "11:50 - 12:40", "12:40 - 13:30", "13:30 - 14:20"]
 };
 
-// Carrega dados iniciais do arquivo JSON se o localStorage estiver vazio
-async function initData() {
-    if (!localStorage.getItem(STORAGE_KEYS.DISCIPLINAS)) {
-        try {
-            const response = await fetch('horario_rag.json');
-            const data = await response.json();
-            
-            localStorage.setItem(STORAGE_KEYS.DISCIPLINAS, JSON.stringify(data.disciplinas));
-            localStorage.setItem(STORAGE_KEYS.PROFESSORES, JSON.stringify(data.professores));
-            localStorage.setItem(STORAGE_KEYS.TURMAS, JSON.stringify(data.turmas));
-            localStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(data.timetable));
-            localStorage.setItem('chronos_config', JSON.stringify(data.config || DEFAULT_CONFIG));
-        } catch (err) {
-            console.error("Erro ao carregar dados iniciais:", err);
-        }
-    }
-}
-
 let activeConfig = JSON.parse(localStorage.getItem('chronos_config')) || DEFAULT_CONFIG;
 
 // Mock Data para iniciar com uma demonstração premium
@@ -2232,18 +2214,24 @@ document.querySelectorAll('.nav-link').forEach(link => {
 // ----------------------------------------------------
 
 function updateDashboardStats() {
-    document.getElementById('stat-turmas').textContent = state.turmas.length;
-    document.getElementById('stat-professores').textContent = state.professores.length;
-    document.getElementById('stat-disciplinas').textContent = state.disciplinas.length;
-    
-    const hasTimetable = Object.keys(state.timetable).length > 0;
+    const elTurmas = document.getElementById('stat-turmas');
+    const elProfs = document.getElementById('stat-professores');
+    const elDiscs = document.getElementById('stat-disciplinas');
     const statusEl = document.getElementById('stat-status');
-    if (hasTimetable) {
-        statusEl.textContent = 'Gerado';
-        statusEl.style.color = 'var(--success)';
-    } else {
-        statusEl.textContent = 'Não Gerado';
-        statusEl.style.color = 'var(--warning)';
+    
+    if (elTurmas) elTurmas.textContent = state.turmas.length;
+    if (elProfs) elProfs.textContent = state.professores.length;
+    if (elDiscs) elDiscs.textContent = state.disciplinas.length;
+    
+    if (statusEl) {
+        const hasTimetable = Object.keys(state.timetable).length > 0;
+        if (hasTimetable) {
+            statusEl.textContent = 'Gerado';
+            statusEl.style.color = 'var(--success)';
+        } else {
+            statusEl.textContent = 'Não Gerado';
+            statusEl.style.color = 'var(--warning)';
+        }
     }
 }
 
@@ -2290,6 +2278,7 @@ formDisciplina.addEventListener('submit', (e) => {
 
 function renderDisciplinas() {
     const tbody = document.querySelector('#table-disciplinas tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     if (state.disciplinas.length === 0) {
@@ -2340,11 +2329,22 @@ window.deleteDisciplina = function(id) {
             p.disciplinas = p.disciplinas.filter(dId => dId !== id);
         });
 
-        // Limpar grade
-        state.timetable = {};
+        // Desalocar apenas os slots desta disciplina na grade de horários
+        Object.keys(state.timetable).forEach(tId => {
+            const agenda = state.timetable[tId];
+            if (agenda) {
+                activeConfig.dias.forEach(dia => {
+                    if (agenda[dia]) {
+                        agenda[dia] = agenda[dia].map(slot => (slot && slot.disciplinaId === id ? null : slot));
+                    }
+                });
+                localStorage.setItem(`chronos_timetable_${tId}`, JSON.stringify(agenda));
+            }
+        });
 
         saveToStorage();
         renderDisciplinas();
+        renderHorariosGrid();
     }
 };
 
@@ -2415,6 +2415,7 @@ function renderProfesores() {
 
 function renderProfessores() {
     const tbody = document.querySelector('#table-professores tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     if (state.professores.length === 0) {
@@ -2516,36 +2517,46 @@ function renderAvailabilityEditor(profDisponibilidade = null) {
 }
 
 // Helpers do Editor de Disponibilidade
-document.getElementById('btn-select-all-avail').addEventListener('click', () => {
-    document.querySelectorAll('.avail-cell-select').forEach(cb => cb.checked = true);
-    document.querySelectorAll('.toggle-day-avail').forEach(cb => cb.checked = true);
-});
-document.getElementById('btn-clear-all-avail').addEventListener('click', () => {
-    document.querySelectorAll('.avail-cell-select').forEach(cb => cb.checked = false);
-    document.querySelectorAll('.toggle-day-avail').forEach(cb => cb.checked = false);
-});
+const btnSelectAllAvail = document.getElementById('btn-select-all-avail');
+if (btnSelectAllAvail) {
+    btnSelectAllAvail.addEventListener('click', () => {
+        document.querySelectorAll('.avail-cell-select').forEach(cb => cb.checked = true);
+        document.querySelectorAll('.toggle-day-avail').forEach(cb => cb.checked = true);
+    });
+}
+
+const btnClearAllAvail = document.getElementById('btn-clear-all-avail');
+if (btnClearAllAvail) {
+    btnClearAllAvail.addEventListener('click', () => {
+        document.querySelectorAll('.avail-cell-select').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.toggle-day-avail').forEach(cb => cb.checked = false);
+    });
+}
 
 // Listener para marcar/desmarcar todos de um dia da semana (coluna)
-document.querySelector('#availability-table-editor').addEventListener('change', (e) => {
-    if (e.target.classList.contains('toggle-day-avail')) {
-        const dia = e.target.getAttribute('data-day');
-        const checked = e.target.checked;
-        document.querySelectorAll(`#availability-table-editor tbody .avail-cell-select[data-dia="${dia}"]`).forEach(cb => {
-            cb.checked = checked;
-        });
-    }
-    
-    // Atualizar checkbox de dia se o usuário marcar/desmarcar individualmente
-    if (e.target.classList.contains('avail-cell-select')) {
-        const dia = e.target.getAttribute('data-dia');
-        const headerCheckbox = document.querySelector(`#availability-table-editor thead .toggle-day-avail[data-day="${dia}"]`);
-        if (headerCheckbox) {
-            const allCells = document.querySelectorAll(`#availability-table-editor tbody .avail-cell-select[data-dia="${dia}"]`);
-            const allChecked = Array.from(allCells).every(cb => cb.checked);
-            headerCheckbox.checked = allChecked;
+const availTableEditor = document.querySelector('#availability-table-editor');
+if (availTableEditor) {
+    availTableEditor.addEventListener('change', (e) => {
+        if (e.target.classList.contains('toggle-day-avail')) {
+            const dia = e.target.getAttribute('data-day');
+            const checked = e.target.checked;
+            document.querySelectorAll(`#availability-table-editor tbody .avail-cell-select[data-dia="${dia}"]`).forEach(cb => {
+                cb.checked = checked;
+            });
         }
-    }
-});
+        
+        // Atualizar checkbox de dia se o usuário marcar/desmarcar individualmente
+        if (e.target.classList.contains('avail-cell-select')) {
+            const dia = e.target.getAttribute('data-dia');
+            const headerCheckbox = document.querySelector(`#availability-table-editor thead .toggle-day-avail[data-day="${dia}"]`);
+            if (headerCheckbox) {
+                const allCells = document.querySelectorAll(`#availability-table-editor tbody .avail-cell-select[data-dia="${dia}"]`);
+                const allChecked = Array.from(allCells).every(cb => cb.checked);
+                headerCheckbox.checked = allChecked;
+            }
+        }
+    });
+}
 
 window.editProfessor = function(id) {
     const prof = state.professores.find(p => p.id === id);
@@ -2561,11 +2572,25 @@ window.editProfessor = function(id) {
 };
 
 window.deleteProfessor = function(id) {
-    if (confirm('Deseja realmente remover este professor?')) {
+    if (confirm('Deseja realmente remover este professor? Suas aulas agendadas ficarão vagas.')) {
         state.professores = state.professores.filter(p => p.id !== id);
-        state.timetable = {}; // Limpar grade pois o professor mudou
+        
+        // Desalocar apenas os slots lecionados por este professor na grade
+        Object.keys(state.timetable).forEach(tId => {
+            const agenda = state.timetable[tId];
+            if (agenda) {
+                activeConfig.dias.forEach(dia => {
+                    if (agenda[dia]) {
+                        agenda[dia] = agenda[dia].map(slot => (slot && slot.professorId === id ? null : slot));
+                    }
+                });
+                localStorage.setItem(`chronos_timetable_${tId}`, JSON.stringify(agenda));
+            }
+        });
+
         saveToStorage();
         renderProfessores();
+        renderHorariosGrid();
     }
 };
 
@@ -2623,6 +2648,7 @@ formTurma.addEventListener('submit', (e) => {
 
 function renderTurmas() {
     const tbody = document.querySelector('#table-turmas tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     if (state.turmas.length === 0) {
@@ -2689,11 +2715,18 @@ window.editTurma = function(id) {
 };
 
 window.deleteTurma = function(id) {
-    if (confirm('Deseja realmente remover esta turma?')) {
+    if (confirm('Deseja realmente remover esta turma e sua respectiva grade de horários?')) {
         state.turmas = state.turmas.filter(t => t.id !== id);
-        state.timetable = {}; // Limpar grade
+        
+        // Limpar grade da turma da memória e do localStorage
+        if (state.timetable[id]) {
+            delete state.timetable[id];
+        }
+        localStorage.removeItem(`chronos_timetable_${id}`);
+
         saveToStorage();
         renderTurmas();
+        renderHorariosView();
     }
 };
 
@@ -2737,7 +2770,7 @@ document.getElementById('btn-save-current-timetable').addEventListener('click', 
     showGenerationMessage('Horário da turma atual salvo com sucesso!', 'success');
 });
 
-// Retirar Tempos Vagos da Turma Atual (Compactar)
+// Retirar Tempos Vagos da Turma Atual (Compactar com validação de choques e disponibilidade)
 document.getElementById('btn-compact-timetable').addEventListener('click', () => {
     const currentTurmaId = selectTimetableTurma.value;
     if (!currentTurmaId) {
@@ -2748,28 +2781,62 @@ document.getElementById('btn-compact-timetable').addEventListener('click', () =>
     if (!state.timetable[currentTurmaId]) return;
     
     let changed = false;
+    let conflictsSkipped = 0;
+
     activeConfig.dias.forEach(dia => {
         const daySchedule = state.timetable[currentTurmaId][dia];
         if (daySchedule && Array.isArray(daySchedule)) {
-            // Remove null values and compact them to the beginning of the day
-            const compacted = daySchedule.filter(slot => slot !== null);
-            while (compacted.length < activeConfig.tempos) {
-                compacted.push(null);
-            }
-            
-            // Check if there was any actual change
-            if (JSON.stringify(daySchedule) !== JSON.stringify(compacted)) {
-                state.timetable[currentTurmaId][dia] = compacted;
-                changed = true;
+            for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
+                if (daySchedule[tempo] === null) {
+                    for (let nextTempo = tempo + 1; nextTempo < activeConfig.tempos; nextTempo++) {
+                        const candidateLesson = daySchedule[nextTempo];
+                        if (candidateLesson) {
+                            const prof = state.professores.find(p => p.id === candidateLesson.professorId);
+                            
+                            // 1. Validar disponibilidade do professor no tempo antecipado
+                            let isAvailable = true;
+                            if (prof && prof.disponibilidade && prof.disponibilidade[dia]) {
+                                isAvailable = prof.disponibilidade[dia].includes(tempo);
+                            }
+
+                            // 2. Validar se o professor já leciona para outra turma neste tempo
+                            let hasClash = false;
+                            if (isAvailable && prof) {
+                                hasClash = Object.entries(state.timetable).some(([otherId, otherAgenda]) => {
+                                    if (otherId === currentTurmaId) return false;
+                                    const otherSlot = otherAgenda[dia] ? otherAgenda[dia][tempo] : null;
+                                    return otherSlot && otherSlot.professorId === prof.id;
+                                });
+                            }
+
+                            if (isAvailable && !hasClash) {
+                                daySchedule[tempo] = candidateLesson;
+                                daySchedule[nextTempo] = null;
+                                changed = true;
+                            } else {
+                                conflictsSkipped++;
+                            }
+                            break;
+                        }
+                    }
+                }
             }
         }
     });
     
     if (changed) {
         renderHorariosGrid();
-        showGenerationMessage('Tempos vagos retirados com sucesso! Lembre-se de clicar em "Salvar Horário".', 'warning');
+        if (conflictsSkipped > 0) {
+            showGenerationMessage(`Tempos vagos compactados! (${conflictsSkipped} aulas mantidas para evitar choques ou respeitar disponibilidades). Clique em "Salvar Horário".`, 'warning');
+        } else {
+            showGenerationMessage('Tempos vagos retirados com sucesso! Lembre-se de clicar em "Salvar Horário".', 'warning');
+        }
     } else {
-        showGenerationMessage('Não há tempos vagos para retirar na turma selecionada.', 'info');
+        if (conflictsSkipped > 0) {
+            showGenerationMessage('Não foi possível adiantar as aulas devido a choques com outras turmas ou indisponibilidade dos docentes.', 'danger');
+        } else {
+            showGenerationMessage('Não há tempos vagos para retirar na turma selecionada.', 'info');
+        }
     }
 });
 
@@ -2829,16 +2896,16 @@ function generateTimetableFlow() {
     const scheduler = new window.TimetableScheduler(state.turmas, state.professores, state.disciplinas, activeConfig);
     const result = scheduler.generate(currentTurmaId, state.timetable);
 
-    if (result.success) {
+    if (result.success && result.timetable && result.timetable[currentTurmaId]) {
         state.timetable[currentTurmaId] = result.timetable[currentTurmaId];
         renderHorariosGrid();
         showGenerationMessage('Grade de horários gerada em memória para a turma atual! Lembre-se de clicar em "Salvar Horário".', 'success');
-    } else if (result.isPartial) {
+    } else if (result.isPartial && result.allocated > 0 && result.timetable && result.timetable[currentTurmaId]) {
         state.timetable[currentTurmaId] = result.timetable[currentTurmaId];
         renderHorariosGrid();
         showGenerationMessage(`Grade gerada parcialmente em memória! Alocamos ${result.allocated} de ${result.total} aulas. Ajuste e clique em "Salvar Horário"!`, 'warning');
     } else {
-        showGenerationMessage('Não foi possível gerar um horário de forma automática para esta turma. Verifique se os professores possuem disponibilidades cadastradas.', 'danger');
+        showGenerationMessage('Não foi possível gerar horários de forma automática para esta turma. Verifique se os professores possuem disponibilidades cadastradas ou se há conflitos com outras turmas.', 'danger');
     }
 }
 
@@ -2866,6 +2933,7 @@ function renderHorariosView() {
 
 function renderHorariosGrid() {
     const root = document.getElementById('timetable-grid-root');
+    if (!root) return;
     root.innerHTML = '';
 
     const viewMode = selectViewMode.value;
@@ -3062,6 +3130,11 @@ function setupDropZone(cell) {
 function moveLesson(dragData, targetTurmaId, targetDia, targetTempo) {
     const { disciplinaId, professorId, turmaId: sourceTurmaId, fromDia, fromTempo } = dragData;
     
+    // Se soltar na mesma célula de origem, nenhuma alteração é necessária
+    if (fromDia === targetDia && fromTempo === targetTempo) {
+        return;
+    }
+
     // 1. Garantir que estamos mexendo na mesma turma (por facilidade de regras de negócio,
     // o usuário move aulas dentro da grade da própria turma)
     if (sourceTurmaId !== targetTurmaId) {
@@ -3458,38 +3531,103 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Funções de Persistência Manual
+// Funções de Persistência Manual (Exportação e Importação de Backup Completo)
 function exportData() {
-    const data = {
-        disciplinas: localStorage.getItem(STORAGE_KEYS.DISCIPLINAS),
-        professores: localStorage.getItem(STORAGE_KEYS.PROFESSORES),
-        turmas: localStorage.getItem(STORAGE_KEYS.TURMAS),
-        timetable: localStorage.getItem(STORAGE_KEYS.TIMETABLE)
+    // Coletar a grade de horários de todas as turmas cadastradas
+    const fullTimetable = {};
+    state.turmas.forEach(t => {
+        const saved = localStorage.getItem(`chronos_timetable_${t.id}`);
+        if (saved) {
+            try {
+                fullTimetable[t.id] = JSON.parse(saved);
+            } catch (e) {
+                fullTimetable[t.id] = state.timetable[t.id] || null;
+            }
+        } else if (state.timetable[t.id]) {
+            fullTimetable[t.id] = state.timetable[t.id];
+        }
+    });
+
+    const exportObject = {
+        version: "3.0",
+        exportDate: new Date().toISOString(),
+        config: activeConfig,
+        disciplinas: state.disciplinas,
+        professores: state.professores,
+        turmas: state.turmas,
+        timetable: fullTimetable
     };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+
+    const blob = new Blob([JSON.stringify(exportObject, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `backup_horario_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `backup_chronos_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showGenerationMessage('Backup completo exportado com sucesso!', 'success');
 }
 
 function importData(event) {
     const file = event.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
-            const data = JSON.parse(e.target.result);
-            localStorage.setItem(STORAGE_KEYS.DISCIPLINAS, data.disciplinas);
-            localStorage.setItem(STORAGE_KEYS.PROFESSORES, data.professores);
-            localStorage.setItem(STORAGE_KEYS.TURMAS, data.turmas);
-            localStorage.setItem(STORAGE_KEYS.TIMETABLE, data.timetable);
-            alert('Dados importados com sucesso! A página será recarregada.');
+            const rawData = JSON.parse(e.target.result);
+
+            // Suportar tanto objetos estruturados quanto JSON stringificado de versões legadas
+            const parseIfNeeded = (val) => {
+                if (typeof val === 'string') {
+                    try { return JSON.parse(val); } catch (err) { return null; }
+                }
+                return val;
+            };
+
+            const disciplinas = parseIfNeeded(rawData.disciplinas);
+            const professores = parseIfNeeded(rawData.professores);
+            const turmas = parseIfNeeded(rawData.turmas);
+            const timetable = parseIfNeeded(rawData.timetable);
+            const config = parseIfNeeded(rawData.config);
+
+            if (!Array.isArray(disciplinas) || !Array.isArray(professores) || !Array.isArray(turmas)) {
+                alert('Erro ao importar: o arquivo JSON deve conter as listas de disciplinas, professores e turmas.');
+                return;
+            }
+
+            // Atualizar configuração se estiver presente no backup
+            if (config && config.dias && config.tempos) {
+                activeConfig = config;
+                localStorage.setItem('chronos_config', JSON.stringify(activeConfig));
+            }
+
+            // Atualizar estado e localStorage
+            state.disciplinas = disciplinas;
+            state.professores = professores;
+            state.turmas = turmas;
+            saveToStorage();
+
+            // Salvar grades de horários importadas por turma
+            if (timetable && typeof timetable === 'object') {
+                state.timetable = timetable;
+                state.turmas.forEach(t => {
+                    if (timetable[t.id]) {
+                        localStorage.setItem(`chronos_timetable_${t.id}`, JSON.stringify(timetable[t.id]));
+                    }
+                });
+            }
+
+            alert('Backup importado com sucesso! A página será recarregada para aplicar as alterações.');
             location.reload();
         } catch (err) {
-            alert('Erro ao importar arquivo: formato inválido.');
+            console.error('Erro ao importar backup:', err);
+            alert('Erro ao importar arquivo: formato JSON inválido.');
         }
     };
     reader.readAsText(file);
+    // Limpar o campo de arquivo para permitir importar o mesmo arquivo novamente se desejado
+    event.target.value = '';
 }

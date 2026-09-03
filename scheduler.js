@@ -38,9 +38,6 @@ class TimetableScheduler {
             });
         });
 
-        // Heurística de ordenação: agendar primeiro as disciplinas com menos professores disponíveis
-        lessonsToSchedule.sort((a, b) => a.professoresPossiveis.length - b.professoresPossiveis.length);
-
         // Inicializar horários vazios
         let timetable = {};
         this.turmas.forEach(t => {
@@ -81,13 +78,39 @@ class TimetableScheduler {
             });
         }
 
-        // Variáveis para rastrear o melhor resultado parcial
-        let bestScheduledCount = 0;
-        let bestTimetable = null;
-        let bestTeacherSchedule = null;
-
         // Função auxiliar para copiar estrutura da grade apenas quando necessário
         const cloneTimetable = (t) => JSON.parse(JSON.stringify(t));
+
+        // Variáveis para rastrear o melhor resultado parcial (inicializadas para nunca retornar null)
+        let bestScheduledCount = 0;
+        let bestTimetable = cloneTimetable(timetable);
+        let bestTeacherSchedule = cloneTimetable(teacherSchedule);
+
+        // Contar slots válidos possíveis para cada aula considerando a disponibilidade dos professores e horários livres
+        lessonsToSchedule.forEach(l => {
+            let validSlots = 0;
+            l.professoresPossiveis.forEach(prof => {
+                this.config.dias.forEach(dia => {
+                    const disp = prof.disponibilidade && prof.disponibilidade[dia];
+                    if (disp) {
+                        for (let tempo = 0; tempo < this.config.tempos; tempo++) {
+                            if (disp.includes(tempo) && teacherSchedule[prof.id][dia][tempo] === null) {
+                                validSlots++;
+                            }
+                        }
+                    }
+                });
+            });
+            l.validSlots = validSlots;
+        });
+
+        // Heurística de ordenação: priorizar disciplinas com menos opções válidas (Most Constrained First)
+        // Aulas sem slots válidos vão para o final para não abortar precocemente o agendamento das outras matérias
+        lessonsToSchedule.sort((a, b) => {
+            if (a.validSlots === 0 && b.validSlots > 0) return 1;
+            if (b.validSlots === 0 && a.validSlots > 0) return -1;
+            return a.validSlots - b.validSlots;
+        });
 
         let steps = 0;
         const MAX_STEPS = 50000;
@@ -105,6 +128,9 @@ class TimetableScheduler {
             if (index >= lessonsToSchedule.length) return true;
 
             const lesson = lessonsToSchedule[index];
+            // Se esta aula não possui nenhum slot viável, encerra essa busca mantendo o melhor resultado
+            if (lesson.validSlots === 0) return false;
+
             const { turmaId, disciplinaId, professoresPossiveis } = lesson;
 
             for (let prof of professoresPossiveis) {
@@ -153,9 +179,9 @@ class TimetableScheduler {
             console.warn(`Geração completa não concluída em ${steps} passos. Retornando melhor resultado parcial (${bestScheduledCount}/${lessonsToSchedule.length} aulas alocadas).`);
             return {
                 success: false,
-                isPartial: true,
-                timetable: bestTimetable,
-                teacherSchedule: bestTeacherSchedule,
+                isPartial: bestScheduledCount > 0,
+                timetable: bestTimetable || cloneTimetable(timetable),
+                teacherSchedule: bestTeacherSchedule || cloneTimetable(teacherSchedule),
                 allocated: bestScheduledCount,
                 total: lessonsToSchedule.length
             };
