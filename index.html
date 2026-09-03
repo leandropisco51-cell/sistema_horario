@@ -11,7 +11,7 @@
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css?v=1.4">
+    <link rel="stylesheet" href="style.css?v=1.5">
     <!-- SheetJS for Excel Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -740,19 +740,21 @@
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="form-school">
+                <div id="modal-school-alert" class="info-alert d-none" style="margin-bottom: 14px;"></div>
+                <form id="form-school" autocomplete="off">
                     <div class="form-group">
                         <label for="input-school-name"><i class="fa-solid fa-school"></i> Nome da Escola</label>
-                        <input type="text" id="input-school-name" class="form-control" required placeholder="Ex: Colégio Santos Dumont">
+                        <input type="text" id="input-school-name" class="form-control" required placeholder="Ex: Colégio Santos Dumont" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label for="input-school-username"><i class="fa-solid fa-user-plus"></i> Usuário de Acesso</label>
-                        <input type="text" id="input-school-username" class="form-control" required placeholder="Ex: santosdumont">
+                        <input type="text" id="input-school-username" class="form-control" required placeholder="Ex: santosdumont" autocomplete="off">
+                        <small style="color: var(--text-muted); font-size: 0.74rem; display: block; margin-top: 4px;"><i class="fa-solid fa-circle-info"></i> Login exclusivo da escola para acessar o sistema (gerado automaticamente ou personalizado).</small>
                     </div>
                     <div class="form-group">
                         <label for="input-school-password"><i class="fa-solid fa-lock"></i> Senha Inicial</label>
                         <div class="password-input-wrapper">
-                            <input type="password" id="input-school-password" class="form-control" required placeholder="Crie a senha inicial">
+                            <input type="password" id="input-school-password" class="form-control" required placeholder="Crie a senha inicial" autocomplete="new-password">
                             <button type="button" id="btn-toggle-school-password" class="btn-toggle-password" onclick="window.togglePasswordVisibility('input-school-password', this)" title="Visualizar senha" aria-label="Visualizar senha">
                                 <i class="fa-solid fa-eye"></i>
                             </button>
@@ -800,7 +802,7 @@
     </div>
 
     <!-- JS Files -->
-    <script src="scheduler.js?v=1.4"></script>
-    <script src="app.js?v=1.4"></script>
+    <script src="scheduler.js?v=1.5"></script>
+    <script src="app.js?v=1.5"></script>
 </body>
 </html>

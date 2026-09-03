@@ -194,19 +194,38 @@ const AuthManager = {
 
     createSchool(name, username, password) {
         this.init();
-        username = username.trim().toLowerCase();
-        name = name.trim();
+        name = (name || '').trim();
+        username = (username || '')
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9_.-]/g, '');
+
         if (!name || !username || !password) {
-            return { success: false, message: 'Preencha todos os campos do formulário.' };
+            return { success: false, message: 'Preencha todos os campos do formulário (Nome, Usuário e Senha).' };
         }
+
+        if (username === 'admin') {
+            return { 
+                success: false, 
+                message: "O usuário 'admin' é exclusivo do Administrador Geral. Por favor, escolha outro usuário no campo 'Usuário de Acesso' (ex: 'colegionovo')." 
+            };
+        }
+
         const users = this.getUsers();
-        if (users.some(u => u.username.toLowerCase() === username)) {
-            return { success: false, message: 'Este nome de usuário já está em uso por outra escola.' };
+        const existingSchool = users.find(u => u.username.toLowerCase() === username);
+        if (existingSchool) {
+            return { 
+                success: false, 
+                message: `O Usuário de Acesso '${username}' já está em uso pela escola "${existingSchool.name}". Por favor, altere o campo "Usuário de Acesso" para outro identificador (ex: '${username}2').` 
+            };
         }
+
         const newSchool = {
             id: 'school_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
             username: username,
-            password: password,
+            password: password.trim(),
             name: name,
             role: 'school',
             isDemo: false,
@@ -4278,9 +4297,51 @@ function initAuthUI() {
     const modalSchool = document.getElementById('modal-school');
     const formSchool = document.getElementById('form-school');
 
+    let schoolUsernameTouched = false;
+    const inputSchoolName = document.getElementById('input-school-name');
+    const inputSchoolUser = document.getElementById('input-school-username');
+    const inputSchoolPass = document.getElementById('input-school-password');
+    const alertSchoolModal = document.getElementById('modal-school-alert');
+
+    function setSchoolModalAlert(msg, type) {
+        if (!alertSchoolModal) return;
+        if (!msg) {
+            alertSchoolModal.textContent = '';
+            alertSchoolModal.className = 'info-alert d-none';
+            return;
+        }
+        alertSchoolModal.textContent = msg;
+        alertSchoolModal.className = `info-alert ${type}`;
+        alertSchoolModal.classList.remove('d-none');
+    }
+
+    if (inputSchoolUser) {
+        inputSchoolUser.addEventListener('input', () => {
+            schoolUsernameTouched = true;
+        });
+    }
+
+    if (inputSchoolName && inputSchoolUser) {
+        inputSchoolName.addEventListener('input', () => {
+            if (!schoolUsernameTouched) {
+                const generated = inputSchoolName.value
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-z0-9]/g, '');
+                inputSchoolUser.value = generated;
+            }
+        });
+    }
+
     if (btnOpenModalSchool && modalSchool) {
         btnOpenModalSchool.addEventListener('click', () => {
             if (formSchool) formSchool.reset();
+            schoolUsernameTouched = false;
+            if (inputSchoolName) inputSchoolName.value = '';
+            if (inputSchoolUser) inputSchoolUser.value = '';
+            if (inputSchoolPass) inputSchoolPass.value = '';
+            setSchoolModalAlert('', '');
             modalSchool.classList.add('active');
         });
     }
@@ -4288,21 +4349,18 @@ function initAuthUI() {
     if (formSchool) {
         formSchool.addEventListener('submit', (e) => {
             e.preventDefault();
-            const nameInput = document.getElementById('input-school-name');
-            const usernameInput = document.getElementById('input-school-username');
-            const passwordInput = document.getElementById('input-school-password');
-
-            const name = nameInput ? nameInput.value : '';
-            const username = usernameInput ? usernameInput.value : '';
-            const password = passwordInput ? passwordInput.value : '';
+            const name = inputSchoolName ? inputSchoolName.value : '';
+            const username = inputSchoolUser ? inputSchoolUser.value : '';
+            const password = inputSchoolPass ? inputSchoolPass.value : '';
 
             const res = AuthManager.createSchool(name, username, password);
             if (res.success) {
                 if (modalSchool) modalSchool.classList.remove('active');
                 renderAdminSchoolsPanel();
-                alert(`Escola "${res.school.name}" cadastrada com sucesso!\nUsuário: ${res.school.username}\nSenha: ${res.school.password}`);
+                alert(`Escola "${res.school.name}" cadastrada com sucesso!\nUsuário de acesso: ${res.school.username}\nSenha: ${res.school.password}`);
             } else {
-                alert('Erro ao cadastrar escola: ' + res.message);
+                setSchoolModalAlert(res.message, 'danger');
+                if (inputSchoolUser) inputSchoolUser.focus();
             }
         });
     }
