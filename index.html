@@ -42,7 +42,12 @@
                 </div>
                 <div class="form-group">
                     <label for="login-password"><i class="fa-solid fa-lock"></i> Senha</label>
-                    <input type="password" id="login-password" class="form-control" required placeholder="Digite sua senha">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="login-password" class="form-control" required placeholder="Digite sua senha" autocomplete="current-password">
+                        <button type="button" id="btn-toggle-login-password" class="btn-toggle-password" title="Visualizar senha" aria-label="Visualizar senha">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 12px; justify-content: center; font-size: 0.95rem;">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i> Acessar Sistema
@@ -739,7 +744,12 @@
                     </div>
                     <div class="form-group">
                         <label for="input-school-password"><i class="fa-solid fa-lock"></i> Senha Inicial</label>
-                        <input type="password" id="input-school-password" class="form-control" required placeholder="Crie a senha inicial">
+                        <div class="password-input-wrapper">
+                            <input type="password" id="input-school-password" class="form-control" required placeholder="Crie a senha inicial">
+                            <button type="button" id="btn-toggle-school-password" class="btn-toggle-password" title="Visualizar senha" aria-label="Visualizar senha">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
@@ -766,7 +776,12 @@
                     </div>
                     <div class="form-group">
                         <label for="input-new-school-password"><i class="fa-solid fa-key"></i> Nova Senha</label>
-                        <input type="password" id="input-new-school-password" class="form-control" required placeholder="Digite a nova senha">
+                        <div class="password-input-wrapper">
+                            <input type="password" id="input-new-school-password" class="form-control" required placeholder="Digite a nova senha">
+                            <button type="button" id="btn-toggle-reset-password" class="btn-toggle-password" title="Visualizar senha" aria-label="Visualizar senha">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>

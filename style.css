@@ -1097,6 +1097,47 @@ body.light-mode .auth-tabs {
     color: var(--text-secondary);
 }
 
+/* Password Input with Visibility Toggle Button */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.password-input-wrapper input {
+    width: 100%;
+    padding-right: 44px !important;
+}
+
+.btn-toggle-password {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.btn-toggle-password:hover {
+    color: var(--primary);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.btn-toggle-password:focus {
+    outline: none;
+    color: var(--primary);
+}
+
 /* School Profile Badge in Header */
 .school-badge {
     display: flex;

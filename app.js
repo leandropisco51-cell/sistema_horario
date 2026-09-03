@@ -3913,6 +3913,19 @@ function showAuthScreen() {
     }
     const formLogin = document.getElementById('form-login');
     if (formLogin) formLogin.reset();
+
+    const inputLoginPwd = document.getElementById('login-password');
+    const btnToggleLoginPwd = document.getElementById('btn-toggle-login-password');
+    if (inputLoginPwd) inputLoginPwd.type = 'password';
+    if (btnToggleLoginPwd) {
+        const icon = btnToggleLoginPwd.querySelector('i');
+        if (icon) {
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+        btnToggleLoginPwd.title = 'Visualizar senha';
+        btnToggleLoginPwd.setAttribute('aria-label', 'Visualizar senha');
+    }
 }
 
 function showAppScreen(user) {
@@ -4117,6 +4130,37 @@ function initAuthUI() {
         authAlert.className = `info-alert ${type}`;
         authAlert.classList.remove('d-none');
     }
+
+    // Configurar botões de alternar visualização de senha
+    function setupPasswordToggle(buttonId, inputId) {
+        const btn = document.getElementById(buttonId);
+        const input = document.getElementById(inputId);
+        if (!btn || !input) return;
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            const icon = btn.querySelector('i');
+            if (icon) {
+                if (isPassword) {
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                    btn.title = 'Ocultar senha';
+                    btn.setAttribute('aria-label', 'Ocultar senha');
+                } else {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                    btn.title = 'Visualizar senha';
+                    btn.setAttribute('aria-label', 'Visualizar senha');
+                }
+            }
+        });
+    }
+
+    setupPasswordToggle('btn-toggle-login-password', 'login-password');
+    setupPasswordToggle('btn-toggle-school-password', 'input-school-password');
+    setupPasswordToggle('btn-toggle-reset-password', 'input-new-school-password');
 
     if (formLogin) {
         formLogin.addEventListener('submit', (e) => {
