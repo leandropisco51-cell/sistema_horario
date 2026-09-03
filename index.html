@@ -21,14 +21,81 @@
     <div class="ambient-glow orb-2"></div>
     <div class="ambient-glow orb-3"></div>
 
-    <div class="app-container">
+    <!-- AUTHENTICATION SCREEN -->
+    <div class="auth-wrapper" id="auth-screen">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-calendar-alt"></i>
+                </div>
+                <h2>Chronos</h2>
+                <p>Gestão e Planejamento Escolar Inteligente</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn active" id="tab-login-btn">
+                    <i class="fa-solid fa-right-to-bracket"></i> Entrar
+                </button>
+                <button type="button" class="auth-tab-btn" id="tab-register-btn">
+                    <i class="fa-solid fa-school"></i> Nova Escola
+                </button>
+            </div>
+
+            <div id="auth-alert" class="info-alert d-none"></div>
+
+            <!-- Formulário de Login -->
+            <form id="form-login" class="auth-form active">
+                <div class="form-group">
+                    <label for="login-username"><i class="fa-solid fa-user"></i> Usuário</label>
+                    <input type="text" id="login-username" class="form-control" required placeholder="Ex: admin">
+                </div>
+                <div class="form-group">
+                    <label for="login-password"><i class="fa-solid fa-lock"></i> Senha</label>
+                    <input type="password" id="login-password" class="form-control" required placeholder="Digite sua senha">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 12px; justify-content: center; font-size: 0.95rem;">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Acessar Escola
+                </button>
+                <div class="auth-hint">
+                    <p><i class="fa-solid fa-circle-info"></i> Escola Modelo de Teste: usuário <strong>admin</strong> / senha <strong>admin</strong></p>
+                </div>
+            </form>
+
+            <!-- Formulário de Cadastro de Nova Escola -->
+            <form id="form-register" class="auth-form d-none">
+                <div class="form-group">
+                    <label for="reg-school-name"><i class="fa-solid fa-school"></i> Nome da Escola</label>
+                    <input type="text" id="reg-school-name" class="form-control" required placeholder="Ex: Colégio Santos Dumont">
+                </div>
+                <div class="form-group">
+                    <label for="reg-username"><i class="fa-solid fa-user-plus"></i> Usuário de Acesso</label>
+                    <input type="text" id="reg-username" class="form-control" required placeholder="Ex: santosdumont">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password"><i class="fa-solid fa-lock"></i> Senha</label>
+                    <input type="password" id="reg-password" class="form-control" required placeholder="Crie sua senha">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 12px; padding: 12px; justify-content: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; font-size: 0.95rem;">
+                    <i class="fa-solid fa-plus-circle"></i> Cadastrar e Iniciar Escola
+                </button>
+                <div class="auth-hint">
+                    <p><i class="fa-solid fa-wand-magic-sparkles"></i> Cada nova escola inicia com o ambiente 100% limpo e isolado.</p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="app-container d-none" id="app-main-container">
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="brand">
                 <div class="brand-icon">
                     <i class="fa-solid fa-calendar-alt"></i>
                 </div>
-                <h2>Chronos</h2>
+                <div>
+                    <h2>Chronos</h2>
+                    <small id="sidebar-school-name" style="color: var(--text-muted); font-size: 0.72rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;">Escola</small>
+                </div>
             </div>
             
             <nav class="nav-menu">
@@ -67,11 +134,18 @@
                     <p id="current-page-subtitle">Visão geral do planejamento escolar</p>
                 </div>
                 <div class="user-profile" style="display: flex; gap: 10px; align-items: center;">
-                    <button class="btn btn-outline" id="btn-toggle-theme" style="padding: 8px 12px;">
+                    <div class="school-badge" id="current-school-badge" title="Escola Ativa">
+                        <i class="fa-solid fa-school"></i>
+                        <span id="school-badge-name">Escola</span>
+                    </div>
+                    <button class="btn btn-outline" id="btn-toggle-theme" style="padding: 8px 12px;" title="Alternar Tema">
                         <i class="fa-solid fa-moon"></i>
                     </button>
                     <button class="btn btn-primary" id="btn-quick-generate">
-                        <i class="fa-solid fa-clock"></i> Grade de Horários
+                        <i class="fa-solid fa-clock"></i> Grade
+                    </button>
+                    <button class="btn btn-outline btn-logout" id="btn-logout" title="Sair da Conta">
+                        <i class="fa-solid fa-right-from-bracket"></i> <span>Sair</span>
                     </button>
                 </div>
             </header>

@@ -1,4 +1,101 @@
 // ----------------------------------------------------
+// MULTI-TENANT AUTHENTICATION & SESSION MANAGEMENT
+// ----------------------------------------------------
+
+const AuthManager = {
+    STORAGE_USERS: 'chronos_auth_users',
+    STORAGE_SESSION: 'chronos_auth_session',
+
+    init() {
+        let users = this.getUsers();
+        // Garantir que a conta padrão "admin" (Escola Modelo EMT) existe
+        if (!users.some(u => u.username === 'admin')) {
+            users.push({
+                id: 'school_demo_emt',
+                username: 'admin',
+                password: 'admin',
+                name: 'Escola EMT (Modelo)',
+                isDemo: true,
+                createdAt: new Date().toISOString()
+            });
+            this.saveUsers(users);
+        }
+    },
+
+    getUsers() {
+        try {
+            return JSON.parse(localStorage.getItem(this.STORAGE_USERS)) || [];
+        } catch (e) {
+            return [];
+        }
+    },
+
+    saveUsers(users) {
+        localStorage.setItem(this.STORAGE_USERS, JSON.stringify(users));
+    },
+
+    getCurrentUser() {
+        try {
+            const session = JSON.parse(localStorage.getItem(this.STORAGE_SESSION));
+            if (!session || !session.userId) return null;
+            const users = this.getUsers();
+            return users.find(u => u.id === session.userId) || null;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    login(username, password) {
+        this.init();
+        const users = this.getUsers();
+        const user = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password);
+        if (!user) {
+            return { success: false, message: 'Usuário ou senha incorretos.' };
+        }
+        localStorage.setItem(this.STORAGE_SESSION, JSON.stringify({ userId: user.id, loggedAt: new Date().toISOString() }));
+        return { success: true, user };
+    },
+
+    register(name, username, password) {
+        this.init();
+        username = username.trim().toLowerCase();
+        name = name.trim();
+        if (!name || !username || !password) {
+            return { success: false, message: 'Preencha todos os campos do formulário.' };
+        }
+        const users = this.getUsers();
+        if (users.some(u => u.username.toLowerCase() === username)) {
+            return { success: false, message: 'Este nome de usuário já está em uso por outra escola.' };
+        }
+        const newUser = {
+            id: 'school_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            username: username,
+            password: password,
+            name: name,
+            isDemo: false,
+            createdAt: new Date().toISOString()
+        };
+        users.push(newUser);
+        this.saveUsers(users);
+
+        // Conectar automaticamente à nova escola criada
+        localStorage.setItem(this.STORAGE_SESSION, JSON.stringify({ userId: newUser.id, loggedAt: new Date().toISOString() }));
+        return { success: true, user: newUser };
+    },
+
+    logout() {
+        localStorage.removeItem(this.STORAGE_SESSION);
+    }
+};
+
+// Obter chave de armazenamento isolada por escola ativa
+function getSchoolKey(key) {
+    const user = AuthManager.getCurrentUser();
+    const schoolId = user ? user.id : 'default';
+    return `chronos_${schoolId}_${key}`;
+}
+
+// ----------------------------------------------------
 // STATE MANAGEMENT & DATA LOADING
 // ----------------------------------------------------
 
@@ -16,7 +113,7 @@ const DEFAULT_CONFIG = {
     temposHorarios: ["07:10 - 08:00", "08:00 - 08:50", "08:50 - 09:40", "10:10 - 11:00", "11:00 - 11:50", "11:50 - 12:40", "12:40 - 13:30", "13:30 - 14:20"]
 };
 
-let activeConfig = JSON.parse(localStorage.getItem('chronos_config')) || DEFAULT_CONFIG;
+let activeConfig = DEFAULT_CONFIG;
 
 // Mock Data para iniciar com uma demonstração premium
 const MOCK_DISCIPLINAS = [
@@ -2124,35 +2221,59 @@ let state = {
     timetable: {} // { turmaId: { dia: [ { disciplinaId, professorId } ou null ] } }
 };
 
-// Carregar dados iniciais
+// Carregar dados da escola ativa
 function initData() {
-    // Forçar limpeza de qualquer resquício de dados antigos de 5 ou 8 tempos (V3)
-    if (localStorage.getItem('chronos_v3_migration') !== 'true') {
-        localStorage.clear();
-        localStorage.setItem('chronos_v3_migration', 'true');
+    const user = AuthManager.getCurrentUser();
+    activeConfig = JSON.parse(localStorage.getItem(getSchoolKey('config'))) || DEFAULT_CONFIG;
+
+    if (user && user.isDemo) {
+        // Conta de Demonstração (Modelo EMT): migra do armazenamento legado ou usa os mocks integrados
+        state.disciplinas = JSON.parse(localStorage.getItem(getSchoolKey('disciplinas'))) 
+            || JSON.parse(localStorage.getItem(STORAGE_KEYS.DISCIPLINAS)) 
+            || MOCK_DISCIPLINAS;
+        state.professores = JSON.parse(localStorage.getItem(getSchoolKey('professores'))) 
+            || JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFESSORES)) 
+            || MOCK_PROFESSORES;
+        state.turmas = JSON.parse(localStorage.getItem(getSchoolKey('turmas'))) 
+            || JSON.parse(localStorage.getItem(STORAGE_KEYS.TURMAS)) 
+            || MOCK_TURMAS;
+        
+        state.timetable = {};
+        state.turmas.forEach(t => {
+            const saved = localStorage.getItem(getSchoolKey(`timetable_${t.id}`)) 
+                || localStorage.getItem(`chronos_timetable_${t.id}`);
+            if (saved) {
+                state.timetable[t.id] = JSON.parse(saved);
+            } else if (MOCK_TIMETABLE[t.id]) {
+                state.timetable[t.id] = MOCK_TIMETABLE[t.id];
+            } else {
+                state.timetable[t.id] = {};
+                activeConfig.dias.forEach(dia => {
+                    state.timetable[t.id][dia] = Array(activeConfig.tempos).fill(null);
+                });
+            }
+        });
+    } else {
+        // Nova Escola Cadastrada: inicia com ambiente 100% limpo e isolado
+        state.disciplinas = JSON.parse(localStorage.getItem(getSchoolKey('disciplinas'))) || [];
+        state.professores = JSON.parse(localStorage.getItem(getSchoolKey('professores'))) || [];
+        state.turmas = JSON.parse(localStorage.getItem(getSchoolKey('turmas'))) || [];
+
+        state.timetable = {};
+        state.turmas.forEach(t => {
+            const saved = localStorage.getItem(getSchoolKey(`timetable_${t.id}`));
+            if (saved) {
+                state.timetable[t.id] = JSON.parse(saved);
+            } else {
+                state.timetable[t.id] = {};
+                activeConfig.dias.forEach(dia => {
+                    state.timetable[t.id][dia] = Array(activeConfig.tempos).fill(null);
+                });
+            }
+        });
     }
     
-    state.disciplinas = JSON.parse(localStorage.getItem(STORAGE_KEYS.DISCIPLINAS)) || MOCK_DISCIPLINAS;
-    state.professores = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFESSORES)) || MOCK_PROFESSORES;
-    state.turmas = JSON.parse(localStorage.getItem(STORAGE_KEYS.TURMAS)) || MOCK_TURMAS;
-    
-    // Carregar horários de forma individual por turma
-    state.timetable = {};
-    state.turmas.forEach(t => {
-        const saved = localStorage.getItem(`chronos_timetable_${t.id}`);
-        if (saved) {
-            state.timetable[t.id] = JSON.parse(saved);
-        } else if (MOCK_TIMETABLE[t.id]) {
-            state.timetable[t.id] = MOCK_TIMETABLE[t.id];
-        } else {
-            state.timetable[t.id] = {};
-            activeConfig.dias.forEach(dia => {
-                state.timetable[t.id][dia] = Array(activeConfig.tempos).fill(null);
-            });
-        }
-    });
-    
-    // Migração de dados antigos sem o campo tempos
+    // Garantir tempos definidos para disciplinas
     state.disciplinas.forEach(d => {
         if (d.tempos === undefined) {
             d.tempos = 4;
@@ -2163,10 +2284,10 @@ function initData() {
 }
 
 function saveToStorage() {
-    localStorage.setItem(STORAGE_KEYS.DISCIPLINAS, JSON.stringify(state.disciplinas));
-    localStorage.setItem(STORAGE_KEYS.PROFESSORES, JSON.stringify(state.professores));
-    localStorage.setItem(STORAGE_KEYS.TURMAS, JSON.stringify(state.turmas));
-    localStorage.setItem('chronos_config', JSON.stringify(activeConfig));
+    localStorage.setItem(getSchoolKey('disciplinas'), JSON.stringify(state.disciplinas));
+    localStorage.setItem(getSchoolKey('professores'), JSON.stringify(state.professores));
+    localStorage.setItem(getSchoolKey('turmas'), JSON.stringify(state.turmas));
+    localStorage.setItem(getSchoolKey('config'), JSON.stringify(activeConfig));
     updateDashboardStats();
 }
 
@@ -2338,7 +2459,7 @@ window.deleteDisciplina = function(id) {
                         agenda[dia] = agenda[dia].map(slot => (slot && slot.disciplinaId === id ? null : slot));
                     }
                 });
-                localStorage.setItem(`chronos_timetable_${tId}`, JSON.stringify(agenda));
+                localStorage.setItem(getSchoolKey(`timetable_${tId}`), JSON.stringify(agenda));
             }
         });
 
@@ -2584,7 +2705,7 @@ window.deleteProfessor = function(id) {
                         agenda[dia] = agenda[dia].map(slot => (slot && slot.professorId === id ? null : slot));
                     }
                 });
-                localStorage.setItem(`chronos_timetable_${tId}`, JSON.stringify(agenda));
+                localStorage.setItem(getSchoolKey(`timetable_${tId}`), JSON.stringify(agenda));
             }
         });
 
@@ -2722,7 +2843,7 @@ window.deleteTurma = function(id) {
         if (state.timetable[id]) {
             delete state.timetable[id];
         }
-        localStorage.removeItem(`chronos_timetable_${id}`);
+        localStorage.removeItem(getSchoolKey(`timetable_${id}`));
 
         saveToStorage();
         renderTurmas();
@@ -2766,7 +2887,7 @@ document.getElementById('btn-save-current-timetable').addEventListener('click', 
         showGenerationMessage('Nenhuma turma selecionada para salvar.', 'danger');
         return;
     }
-    localStorage.setItem(`chronos_timetable_${currentTurmaId}`, JSON.stringify(state.timetable[currentTurmaId] || {}));
+    localStorage.setItem(getSchoolKey(`timetable_${currentTurmaId}`), JSON.stringify(state.timetable[currentTurmaId] || {}));
     showGenerationMessage('Horário da turma atual salvo com sucesso!', 'success');
 });
 
@@ -2876,7 +2997,7 @@ function generateTimetableFlow() {
     }
 
     // Verificar se já existe um horário salvo para esta turma no localStorage
-    const saved = localStorage.getItem(`chronos_timetable_${currentTurmaId}`);
+    const saved = localStorage.getItem(getSchoolKey(`timetable_${currentTurmaId}`));
     if (saved) {
         const parsed = JSON.parse(saved);
         let hasSavedLessons = false;
@@ -3496,13 +3617,142 @@ function handleRAGImport(event) {
     reader.readAsText(file);
 }
 
-// Inicialização Geral
-window.addEventListener('DOMContentLoaded', () => {
+// ----------------------------------------------------
+// AUTHENTICATION UI & VIEW CONTROLLERS
+// ----------------------------------------------------
+
+function showAuthScreen() {
+    const authScreen = document.getElementById('auth-screen');
+    const appContainer = document.getElementById('app-main-container');
+    if (authScreen) authScreen.classList.remove('d-none');
+    if (appContainer) appContainer.classList.add('d-none');
+    
+    const alertEl = document.getElementById('auth-alert');
+    if (alertEl) {
+        alertEl.textContent = '';
+        alertEl.className = 'info-alert d-none';
+    }
+    const formLogin = document.getElementById('form-login');
+    const formReg = document.getElementById('form-register');
+    if (formLogin) formLogin.reset();
+    if (formReg) formReg.reset();
+}
+
+function showAppScreen(user) {
+    const authScreen = document.getElementById('auth-screen');
+    const appContainer = document.getElementById('app-main-container');
+    if (authScreen) authScreen.classList.add('d-none');
+    if (appContainer) appContainer.classList.remove('d-none');
+
+    const badgeName = document.getElementById('school-badge-name');
+    const sideSchoolName = document.getElementById('sidebar-school-name');
+    if (badgeName) badgeName.textContent = user.name || user.username;
+    if (sideSchoolName) sideSchoolName.textContent = user.name || user.username;
+
     initData();
     renderDisciplinas();
     renderProfessores();
     renderTurmas();
     renderHorariosView();
+}
+
+function checkAuthAndInit() {
+    AuthManager.init();
+    const currentUser = AuthManager.getCurrentUser();
+    if (!currentUser) {
+        showAuthScreen();
+    } else {
+        showAppScreen(currentUser);
+    }
+}
+
+function initAuthUI() {
+    const tabLogin = document.getElementById('tab-login-btn');
+    const tabReg = document.getElementById('tab-register-btn');
+    const formLogin = document.getElementById('form-login');
+    const formReg = document.getElementById('form-register');
+    const authAlert = document.getElementById('auth-alert');
+
+    function setAuthAlert(msg, type) {
+        if (!authAlert) return;
+        authAlert.textContent = msg;
+        authAlert.className = `info-alert ${type}`;
+        authAlert.classList.remove('d-none');
+    }
+
+    if (tabLogin && tabReg && formLogin && formReg) {
+        tabLogin.addEventListener('click', () => {
+            tabLogin.classList.add('active');
+            tabReg.classList.remove('active');
+            formLogin.classList.remove('d-none');
+            formReg.classList.add('d-none');
+            if (authAlert) authAlert.classList.add('d-none');
+        });
+
+        tabReg.addEventListener('click', () => {
+            tabReg.classList.add('active');
+            tabLogin.classList.remove('active');
+            formReg.classList.remove('d-none');
+            formLogin.classList.add('d-none');
+            if (authAlert) authAlert.classList.add('d-none');
+        });
+    }
+
+    if (formLogin) {
+        formLogin.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const usernameInput = document.getElementById('login-username');
+            const passwordInput = document.getElementById('login-password');
+            const username = usernameInput ? usernameInput.value : '';
+            const password = passwordInput ? passwordInput.value : '';
+
+            const res = AuthManager.login(username, password);
+            if (res.success) {
+                showAppScreen(res.user);
+            } else {
+                setAuthAlert(res.message, 'danger');
+            }
+        });
+    }
+
+    if (formReg) {
+        formReg.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const schoolNameInput = document.getElementById('reg-school-name');
+            const usernameInput = document.getElementById('reg-username');
+            const passwordInput = document.getElementById('reg-password');
+
+            const name = schoolNameInput ? schoolNameInput.value : '';
+            const username = usernameInput ? usernameInput.value : '';
+            const password = passwordInput ? passwordInput.value : '';
+
+            const res = AuthManager.register(name, username, password);
+            if (res.success) {
+                showAppScreen(res.user);
+            } else {
+                setAuthAlert(res.message, 'danger');
+            }
+        });
+    }
+
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            const user = AuthManager.getCurrentUser();
+            const schoolName = user ? user.name : 'sua escola';
+            if (confirm(`Deseja realmente sair da conta de "${schoolName}"?`)) {
+                AuthManager.logout();
+                state = { disciplinas: [], professores: [], turmas: [], timetable: {} };
+                showAuthScreen();
+            }
+        });
+    }
+}
+
+// Inicialização Geral
+window.addEventListener('DOMContentLoaded', () => {
+    initAuthUI();
+    checkAuthAndInit();
 
     // Evento de Exportação
     document.getElementById('btn-export-excel').addEventListener('click', exportTimetableToExcel);
@@ -3531,12 +3781,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Funções de Persistência Manual (Exportação e Importação de Backup Completo)
+// Funções de Persistência Manual (Exportação e Importação de Backup Completo por Escola)
 function exportData() {
-    // Coletar a grade de horários de todas as turmas cadastradas
+    const user = AuthManager.getCurrentUser();
     const fullTimetable = {};
     state.turmas.forEach(t => {
-        const saved = localStorage.getItem(`chronos_timetable_${t.id}`);
+        const saved = localStorage.getItem(getSchoolKey(`timetable_${t.id}`));
         if (saved) {
             try {
                 fullTimetable[t.id] = JSON.parse(saved);
@@ -3551,6 +3801,7 @@ function exportData() {
     const exportObject = {
         version: "3.0",
         exportDate: new Date().toISOString(),
+        school: user ? { id: user.id, name: user.name, username: user.username } : null,
         config: activeConfig,
         disciplinas: state.disciplinas,
         professores: state.professores,
@@ -3562,12 +3813,13 @@ function exportData() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `backup_chronos_${new Date().toISOString().slice(0, 10)}.json`;
+    const safeSchoolName = user ? user.name.replace(/[^a-zA-Z0-9_-]/g, '_') : 'escola';
+    a.download = `backup_${safeSchoolName}_${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showGenerationMessage('Backup completo exportado com sucesso!', 'success');
+    showGenerationMessage('Backup da escola exportado com sucesso!', 'success');
 }
 
 function importData(event) {
@@ -3579,7 +3831,6 @@ function importData(event) {
         try {
             const rawData = JSON.parse(e.target.result);
 
-            // Suportar tanto objetos estruturados quanto JSON stringificado de versões legadas
             const parseIfNeeded = (val) => {
                 if (typeof val === 'string') {
                     try { return JSON.parse(val); } catch (err) { return null; }
@@ -3598,29 +3849,26 @@ function importData(event) {
                 return;
             }
 
-            // Atualizar configuração se estiver presente no backup
             if (config && config.dias && config.tempos) {
                 activeConfig = config;
-                localStorage.setItem('chronos_config', JSON.stringify(activeConfig));
+                localStorage.setItem(getSchoolKey('config'), JSON.stringify(activeConfig));
             }
 
-            // Atualizar estado e localStorage
             state.disciplinas = disciplinas;
             state.professores = professores;
             state.turmas = turmas;
             saveToStorage();
 
-            // Salvar grades de horários importadas por turma
             if (timetable && typeof timetable === 'object') {
                 state.timetable = timetable;
                 state.turmas.forEach(t => {
                     if (timetable[t.id]) {
-                        localStorage.setItem(`chronos_timetable_${t.id}`, JSON.stringify(timetable[t.id]));
+                        localStorage.setItem(getSchoolKey(`timetable_${t.id}`), JSON.stringify(timetable[t.id]));
                     }
                 });
             }
 
-            alert('Backup importado com sucesso! A página será recarregada para aplicar as alterações.');
+            alert('Backup importado com sucesso para esta escola! A página será recarregada.');
             location.reload();
         } catch (err) {
             console.error('Erro ao importar backup:', err);
@@ -3628,6 +3876,5 @@ function importData(event) {
         }
     };
     reader.readAsText(file);
-    // Limpar o campo de arquivo para permitir importar o mesmo arquivo novamente se desejado
     event.target.value = '';
 }
