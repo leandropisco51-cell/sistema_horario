@@ -207,9 +207,13 @@ const STORAGE_KEYS = {
 
 const DEFAULT_CONFIG = {
     dias: [2, 3, 4, 5, 6],
-    diasNomes: { 2: 'Segunda', 3: 'Terça', 4: 'Quarta', 5: 'Quinta', 6: 'Sexta' },
+    diasNomes: { 2: 'Segunda', 3: 'Terça', 4: 'Quarta', 5: 'Quinta', 6: 'Sexta', 7: 'Sábado' },
     tempos: 8,
-    temposHorarios: ["07:10 - 08:00", "08:00 - 08:50", "08:50 - 09:40", "10:10 - 11:00", "11:00 - 11:50", "11:50 - 12:40", "12:40 - 13:30", "13:30 - 14:20"]
+    temposHorarios: ["07:10 - 08:00", "08:00 - 08:50", "08:50 - 09:40", "10:10 - 11:00", "11:00 - 11:50", "11:50 - 12:40", "12:40 - 13:30", "13:30 - 14:20"],
+    segmentos: [
+        { id: "seg_default_1", nome: "Ensino Médio", turno: "Matutino" },
+        { id: "seg_default_2", nome: "Ensino Fundamental II", turno: "Vespertino" }
+    ]
 };
 
 let activeConfig = DEFAULT_CONFIG;
@@ -2417,7 +2421,8 @@ document.querySelectorAll('.nav-link').forEach(link => {
             disciplinas: { title: 'Disciplinas', subtitle: 'Gerenciamento das matérias ofertadas' },
             professores: { title: 'Professores', subtitle: 'Cadastro de docentes e disponibilidades' },
             turmas: { title: 'Turmas', subtitle: 'Configuração de turmas e carga horária semanal' },
-            horarios: { title: 'Grade de Horários', subtitle: 'Geração inteligente e ajuste interativo por drag-and-drop' }
+            horarios: { title: 'Grade de Horários', subtitle: 'Geração inteligente e ajuste interativo por drag-and-drop' },
+            config: { title: 'Configurações da Escola', subtitle: 'Personalização de dias letivos, tempos de aula e segmentos de ensino' }
         };
         if (titles[target]) {
             document.getElementById('current-page-title').textContent = titles[target].title;
@@ -2430,6 +2435,7 @@ document.querySelectorAll('.nav-link').forEach(link => {
         if (target === 'professores') renderProfessores();
         if (target === 'turmas') renderTurmas();
         if (target === 'horarios') renderHorariosView();
+        if (target === 'config') renderConfigView();
     });
 });
 
@@ -2699,15 +2705,29 @@ function renderProfDisciplinasCheckboxes(checkedIds = []) {
 }
 
 function renderAvailabilityEditor(profDisponibilidade = null) {
+    const thead = document.querySelector('#availability-table-editor thead');
     const tbody = document.querySelector('#availability-table-editor tbody');
+    if (!tbody) return;
+
+    if (thead) {
+        let theadHtml = '<tr><th>Período / Aula</th>';
+        activeConfig.dias.forEach(dia => {
+            const diaNomeCurto = (activeConfig.diasNomes[dia] || 'Dia').slice(0, 3);
+            theadHtml += `<th><label style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700;"><input type="checkbox" class="toggle-day-avail" data-day="${dia}"> ${diaNomeCurto}</label></th>`;
+        });
+        theadHtml += '</tr>';
+        thead.innerHTML = theadHtml;
+    }
+
     tbody.innerHTML = '';
 
     for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><strong>${tempo + 1}º Tempo</strong><br><span style="font-size:0.75rem; color: var(--text-muted);">${activeConfig.temposHorarios[tempo]}</span></td>`;
+        const horarioTxt = (activeConfig.temposHorarios && activeConfig.temposHorarios[tempo]) ? activeConfig.temposHorarios[tempo] : '';
+        tr.innerHTML = `<td><strong>${tempo + 1}º Tempo</strong><br><span style="font-size:0.75rem; color: var(--text-muted);">${horarioTxt}</span></td>`;
         
         activeConfig.dias.forEach(dia => {
-            let isChecked = true; // Por padrão, ativo para novas cadastros
+            let isChecked = true; // Por padrão, ativo para novos cadastros
             if (profDisponibilidade && profDisponibilidade[dia]) {
                 isChecked = profDisponibilidade[dia].includes(tempo);
             }
@@ -2829,7 +2849,7 @@ document.getElementById('btn-add-turma').addEventListener('click', () => {
     document.getElementById('modal-turma-title').textContent = 'Adicionar Turma';
     formTurma.reset();
     document.getElementById('edit-turma-id').value = '';
-    
+    populateSegmentosSelect();
     renderTurmaCargaInputs({});
     modalTurma.classList.add('active');
 });
@@ -2838,6 +2858,8 @@ formTurma.addEventListener('submit', (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-turma-id').value;
     const nome = document.getElementById('input-turma-nome').value;
+    const selectSeg = document.getElementById('input-turma-segmento');
+    const segmentoId = selectSeg ? selectSeg.value : '';
 
     // Coletar cargas horárias
     const cargaHoraria = {};
@@ -2854,6 +2876,7 @@ formTurma.addEventListener('submit', (e) => {
         const turma = state.turmas.find(t => t.id === id);
         if (turma) {
             turma.nome = nome;
+            turma.segmentoId = segmentoId || null;
             turma.cargaHoraria = cargaHoraria;
         }
     } else {
@@ -2861,6 +2884,7 @@ formTurma.addEventListener('submit', (e) => {
         state.turmas.push({
             id: 't_' + Date.now(),
             nome: nome,
+            segmentoId: segmentoId || null,
             cargaHoraria: cargaHoraria
         });
     }
@@ -2889,9 +2913,12 @@ function renderTurmas() {
             }
         });
 
+        const seg = (activeConfig.segmentos || []).find(s => s.id === turma.segmentoId);
+        const segBadge = seg ? `<span class="badge badge-secondary" style="font-size:0.75rem; margin-left: 8px;"><i class="fa-solid fa-graduation-cap"></i> ${seg.nome} (${seg.turno})</span>` : '';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="font-weight: 600;">${turma.nome}</td>
+            <td style="font-weight: 600;">${turma.nome} ${segBadge}</td>
             <td><span class="badge badge-primary">${listCargaText.join(', ') || 'Nenhuma carga configurada'}</span></td>
             <td style="width: 120px;">
                 <div class="action-buttons">
@@ -2930,9 +2957,12 @@ window.editTurma = function(id) {
     const turma = state.turmas.find(t => t.id === id);
     if (!turma) return;
 
+    populateSegmentosSelect();
     document.getElementById('modal-turma-title').textContent = 'Editar Turma';
     document.getElementById('edit-turma-id').value = turma.id;
     document.getElementById('input-turma-nome').value = turma.nome;
+    const selectSeg = document.getElementById('input-turma-segmento');
+    if (selectSeg) selectSeg.value = turma.segmentoId || '';
 
     renderTurmaCargaInputs(turma.cargaHoraria);
     modalTurma.classList.add('active');
@@ -3159,6 +3189,7 @@ function renderHorariosGrid() {
     const root = document.getElementById('timetable-grid-root');
     if (!root) return;
     root.innerHTML = '';
+    root.style.gridTemplateColumns = `120px repeat(${activeConfig.dias.length}, 1fr)`;
 
     const viewMode = selectViewMode.value;
     const currentTurmaId = selectTimetableTurma.value;
@@ -3183,22 +3214,22 @@ function renderHorariosGrid() {
     activeConfig.dias.forEach(dia => {
         const headerCell = document.createElement('div');
         headerCell.className = 'timetable-header-cell';
-        headerCell.textContent = activeConfig.diasNomes[dia];
+        headerCell.textContent = activeConfig.diasNomes[dia] || `Dia ${dia}`;
         root.appendChild(headerCell);
     });
 
     // 2. Renderizar linhas por Período/Tempo
     for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
-        // Se for o 4º tempo (index 3), insere a linha visual do Intervalo primeiro
-        if (tempo === 3) {
+        // Se a escola tiver mais de 4 tempos e for o 4º tempo (index 3), insere a linha visual do Intervalo
+        if (activeConfig.tempos > 4 && tempo === 3) {
             const intervalTimeCell = document.createElement('div');
             intervalTimeCell.className = 'timetable-time-cell';
             intervalTimeCell.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
-            intervalTimeCell.innerHTML = `<strong>RECREIO</strong><span>09:40 - 10:10</span>`;
+            intervalTimeCell.innerHTML = `<strong>RECREIO</strong><span>Intervalo</span>`;
             root.appendChild(intervalTimeCell);
 
             const intervalCell = document.createElement('div');
-            intervalCell.style.gridColumn = 'span 5';
+            intervalCell.style.gridColumn = `span ${activeConfig.dias.length}`;
             intervalCell.style.display = 'flex';
             intervalCell.style.alignItems = 'center';
             intervalCell.style.justifyContent = 'center';
@@ -3215,7 +3246,8 @@ function renderHorariosGrid() {
         // Primeira célula da linha: Identificação do Tempo
         const timeCell = document.createElement('div');
         timeCell.className = 'timetable-time-cell';
-        timeCell.innerHTML = `<strong>${tempo + 1}º Tempo</strong><span>${activeConfig.temposHorarios[tempo]}</span>`;
+        const horarioStr = (activeConfig.temposHorarios && activeConfig.temposHorarios[tempo]) ? activeConfig.temposHorarios[tempo] : '';
+        timeCell.innerHTML = `<strong>${tempo + 1}º Tempo</strong><span>${horarioStr}</span>`;
         root.appendChild(timeCell);
 
         // Células dos dias letivos
@@ -3767,12 +3799,20 @@ function showAppScreen(user) {
         if (impBanner) impBanner.classList.add('d-none');
     }
 
-    // Visibilidade do Link de Gestão de Escolas na Sidebar
+    // Visibilidade dos Links na Sidebar
     if (navAdminSchools) {
         if (isSuperAdmin && !isImpersonating) {
             navAdminSchools.classList.remove('d-none');
         } else {
             navAdminSchools.classList.add('d-none');
+        }
+    }
+    const navConfig = document.getElementById('nav-link-config');
+    if (navConfig) {
+        if (isSuperAdmin && !isImpersonating) {
+            navConfig.classList.add('d-none');
+        } else {
+            navConfig.classList.remove('d-none');
         }
     }
 
@@ -4038,9 +4078,269 @@ function initAuthUI() {
     }
 }
 
+// ----------------------------------------------------
+// ESCOLA: CONFIGURAÇÕES, SEGMENTOS & HORÁRIOS
+// ----------------------------------------------------
+
+function populateSegmentosSelect() {
+    const select = document.getElementById('input-turma-segmento');
+    if (!select) return;
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">Geral / Sem Segmento Específico</option>';
+    if (activeConfig && activeConfig.segmentos && Array.isArray(activeConfig.segmentos)) {
+        activeConfig.segmentos.forEach(seg => {
+            const opt = document.createElement('option');
+            opt.value = seg.id;
+            opt.textContent = `${seg.nome} (${seg.turno})`;
+            select.appendChild(opt);
+        });
+    }
+    select.value = currentVal;
+}
+
+function renderConfigView() {
+    // 1. Marcar checkboxes dos dias da semana
+    const dayCheckboxes = document.querySelectorAll('input[name="config-dia"]');
+    dayCheckboxes.forEach(cb => {
+        cb.checked = activeConfig.dias.includes(parseInt(cb.value, 10));
+    });
+
+    // 2. Definir quantidade de tempos
+    const selectTempos = document.getElementById('select-config-tempos');
+    if (selectTempos) {
+        selectTempos.value = String(activeConfig.tempos);
+    }
+
+    // 3. Renderizar tabela de horários de cada tempo
+    renderConfigTemposInputs(activeConfig.tempos, activeConfig.temposHorarios);
+
+    // 4. Renderizar tabela de segmentos
+    renderConfigSegmentos();
+
+    // 5. Atualizar select de segmentos no modal de turmas
+    populateSegmentosSelect();
+}
+
+function renderConfigTemposInputs(temposCount, temposHorarios = []) {
+    const tbody = document.getElementById('tbody-config-tempos');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    for (let i = 0; i < temposCount; i++) {
+        const existingHorario = temposHorarios[i] || '';
+        const parts = existingHorario.split(' - ');
+        const startVal = parts[0] ? parts[0].trim() : '';
+        const endVal = parts[1] ? parts[1].trim() : '';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${i + 1}º Tempo</strong></td>
+            <td>
+                <input type="text" class="form-control config-tempo-start" data-tempo="${i}" value="${startVal}" placeholder="Ex: 07:10" style="max-width: 140px;" required>
+            </td>
+            <td>
+                <input type="text" class="form-control config-tempo-end" data-tempo="${i}" value="${endVal}" placeholder="Ex: 08:00" style="max-width: 140px;" required>
+            </td>
+            <td>
+                <span class="badge badge-secondary config-tempo-preview" id="preview-tempo-${i}">${existingHorario || (startVal && endVal ? `${startVal} - ${endVal}` : 'A definir')}</span>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    tbody.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', () => {
+            const idx = input.getAttribute('data-tempo');
+            const startInput = tbody.querySelector(`.config-tempo-start[data-tempo="${idx}"]`);
+            const endInput = tbody.querySelector(`.config-tempo-end[data-tempo="${idx}"]`);
+            const preview = document.getElementById(`preview-tempo-${idx}`);
+            if (preview && startInput && endInput) {
+                preview.textContent = `${startInput.value || '--:--'} - ${endInput.value || '--:--'}`;
+            }
+        });
+    });
+}
+
+function renderConfigSegmentos() {
+    const tbody = document.querySelector('#table-config-segmentos tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const segmentos = activeConfig.segmentos || [];
+    if (segmentos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">Nenhum segmento cadastrado ainda.</td></tr>`;
+        return;
+    }
+
+    segmentos.forEach(seg => {
+        const turmasCount = state.turmas.filter(t => t.segmentoId === seg.id).length;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="font-weight: 600;">${seg.nome}</td>
+            <td><span class="badge badge-primary">${seg.turno}</span></td>
+            <td><span class="badge badge-secondary">${turmasCount} turmas</span></td>
+            <td style="text-align: right;">
+                <button class="btn-icon btn-delete" onclick="deleteSegmento('${seg.id}')" title="Excluir Segmento">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function applyPresetTimes(presetType) {
+    const tempos = parseInt(document.getElementById('select-config-tempos').value, 10) || activeConfig.tempos;
+    const presets = {
+        morning: ["07:10 - 08:00", "08:00 - 08:50", "08:50 - 09:40", "10:00 - 10:50", "10:50 - 11:40", "11:40 - 12:30", "12:30 - 13:20", "13:20 - 14:10"],
+        afternoon: ["13:00 - 13:50", "13:50 - 14:40", "14:40 - 15:30", "15:50 - 16:40", "16:40 - 17:30", "17:30 - 18:20", "18:20 - 19:10", "19:10 - 20:00"],
+        night: ["19:00 - 19:45", "19:45 - 20:30", "20:45 - 21:30", "21:30 - 22:15", "22:15 - 23:00", "23:00 - 23:45"]
+    };
+    const chosen = presets[presetType] || presets.morning;
+    renderConfigTemposInputs(tempos, chosen);
+}
+
+window.deleteSegmento = function(segId) {
+    if (confirm('Deseja realmente excluir este segmento de ensino? As turmas vinculadas a ele ficarão sem segmento específico.')) {
+        activeConfig.segmentos = (activeConfig.segmentos || []).filter(s => s.id !== segId);
+        state.turmas.forEach(t => {
+            if (t.segmentoId === segId) {
+                t.segmentoId = null;
+            }
+        });
+        localStorage.setItem(getSchoolKey('config'), JSON.stringify(activeConfig));
+        saveToStorage();
+        renderConfigSegmentos();
+        renderTurmas();
+        populateSegmentosSelect();
+        showGenerationMessage('Segmento removido com sucesso.', 'success');
+    }
+};
+
+function initSchoolConfigUI() {
+    // Botão para atualizar tabela de tempos com base no select de quantidade
+    const btnApplyTempos = document.getElementById('btn-apply-tempos-count');
+    if (btnApplyTempos) {
+        btnApplyTempos.addEventListener('click', () => {
+            const count = parseInt(document.getElementById('select-config-tempos').value, 10);
+            renderConfigTemposInputs(count, activeConfig.temposHorarios);
+        });
+    }
+
+    // Presets rápidos de horário
+    const btnPresMorning = document.getElementById('btn-preset-morning');
+    const btnPresAfternoon = document.getElementById('btn-preset-afternoon');
+    const btnPresNight = document.getElementById('btn-preset-night');
+
+    if (btnPresMorning) btnPresMorning.addEventListener('click', () => applyPresetTimes('morning'));
+    if (btnPresAfternoon) btnPresAfternoon.addEventListener('click', () => applyPresetTimes('afternoon'));
+    if (btnPresNight) btnPresNight.addEventListener('click', () => applyPresetTimes('night'));
+
+    // Submissão do formulário de horários e dias (Salvar tudo)
+    const formHorarios = document.getElementById('form-config-horarios-tempos');
+    if (formHorarios) {
+        formHorarios.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            // 1. Coletar dias selecionados
+            const checkedDays = Array.from(document.querySelectorAll('input[name="config-dia"]:checked'))
+                .map(cb => parseInt(cb.value, 10))
+                .sort((a, b) => a - b);
+
+            if (checkedDays.length === 0) {
+                alert('Atenção: selecione ao menos 1 dia letivo da semana.');
+                return;
+            }
+
+            // 2. Coletar quantidade de tempos
+            const count = parseInt(document.getElementById('select-config-tempos').value, 10);
+
+            // 3. Coletar horários de cada tempo
+            const novosHorarios = [];
+            for (let i = 0; i < count; i++) {
+                const startInput = document.querySelector(`.config-tempo-start[data-tempo="${i}"]`);
+                const endInput = document.querySelector(`.config-tempo-end[data-tempo="${i}"]`);
+                const start = startInput ? startInput.value.trim() : '';
+                const end = endInput ? endInput.value.trim() : '';
+                if (!start || !end) {
+                    alert(`Por favor, preencha o horário de início e término do ${i + 1}º tempo.`);
+                    return;
+                }
+                novosHorarios.push(`${start} - ${end}`);
+            }
+
+            // 4. Salvar na configuração
+            activeConfig.dias = checkedDays;
+            activeConfig.tempos = count;
+            activeConfig.temposHorarios = novosHorarios;
+
+            localStorage.setItem(getSchoolKey('config'), JSON.stringify(activeConfig));
+
+            // 5. Ajustar grades existentes
+            state.turmas.forEach(t => {
+                if (state.timetable[t.id]) {
+                    activeConfig.dias.forEach(dia => {
+                        if (!state.timetable[t.id][dia]) {
+                            state.timetable[t.id][dia] = Array(activeConfig.tempos).fill(null);
+                        } else if (state.timetable[t.id][dia].length < activeConfig.tempos) {
+                            while (state.timetable[t.id][dia].length < activeConfig.tempos) {
+                                state.timetable[t.id][dia].push(null);
+                            }
+                        }
+                    });
+                    localStorage.setItem(getSchoolKey(`timetable_${t.id}`), JSON.stringify(state.timetable[t.id]));
+                }
+            });
+
+            saveToStorage();
+            renderHorariosView();
+            renderConfigView();
+            showGenerationMessage('Configurações da escola salvas com sucesso!', 'success');
+            alert('Configurações da escola salvas com sucesso! A grade e disponibilidades foram atualizadas.');
+        });
+    }
+
+    // Modal de Segmento
+    const modalSegmento = document.getElementById('modal-segmento');
+    const formSegmento = document.getElementById('form-segmento');
+    const btnOpenModalSeg = document.getElementById('btn-open-modal-segmento');
+
+    if (btnOpenModalSeg && modalSegmento) {
+        btnOpenModalSeg.addEventListener('click', () => {
+            if (formSegmento) formSegmento.reset();
+            document.getElementById('edit-segmento-id').value = '';
+            modalSegmento.classList.add('active');
+        });
+    }
+
+    if (formSegmento) {
+        formSegmento.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('input-segmento-nome').value.trim();
+            const turno = document.getElementById('select-segmento-turno').value;
+            if (!nome) return;
+
+            if (!activeConfig.segmentos) activeConfig.segmentos = [];
+            activeConfig.segmentos.push({
+                id: 'seg_' + Date.now(),
+                nome: nome,
+                turno: turno
+            });
+
+            localStorage.setItem(getSchoolKey('config'), JSON.stringify(activeConfig));
+            if (modalSegmento) modalSegmento.classList.remove('active');
+            renderConfigSegmentos();
+            populateSegmentosSelect();
+            renderTurmas();
+            showGenerationMessage(`Segmento "${nome}" cadastrado com sucesso!`, 'success');
+        });
+    }
+}
+
 // Inicialização Geral
 window.addEventListener('DOMContentLoaded', () => {
     initAuthUI();
+    initSchoolConfigUI();
     checkAuthAndInit();
 
     // Evento de Exportação

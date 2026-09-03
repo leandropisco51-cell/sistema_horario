@@ -103,6 +103,10 @@
                     <i class="fa-solid fa-clock"></i>
                     <span>Grade de Horários</span>
                 </a>
+                <a href="#" class="nav-link" id="nav-link-config" data-target="config">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Configurações</span>
+                </a>
             </nav>
             
             <div class="sidebar-footer">
@@ -413,6 +417,131 @@
                     </div>
                 </section>
 
+                <!-- SECTION: CONFIGURAÇÕES DA ESCOLA -->
+                <section id="section-config" class="content-section">
+                    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+                        <!-- Card 1: Dias Letivos & Tempos -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-header-title">
+                                    <i class="fa-solid fa-calendar-days text-primary"></i>
+                                    <h3>Dias de Aula & Quantidade de Tempos</h3>
+                                </div>
+                            </div>
+                            <form id="form-config-dias-tempos">
+                                <div class="form-group">
+                                    <label><strong>Dias Letivos na Semana:</strong></label>
+                                    <div class="checkbox-group-grid" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; margin-top: 6px;">
+                                        <label class="checkbox-label"><input type="checkbox" name="config-dia" value="2"> Segunda</label>
+                                        <label class="checkbox-label"><input type="checkbox" name="config-dia" value="3"> Terça</label>
+                                        <label class="checkbox-label"><input type="checkbox" name="config-dia" value="4"> Quarta</label>
+                                        <label class="checkbox-label"><input type="checkbox" name="config-dia" value="5"> Quinta</label>
+                                        <label class="checkbox-label"><input type="checkbox" name="config-dia" value="6"> Sexta</label>
+                                        <label class="checkbox-label"><input type="checkbox" name="config-dia" value="7"> Sábado</label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group mt-3">
+                                    <label for="select-config-tempos"><strong>Aulas Diárias (Tempos por dia):</strong></label>
+                                    <select id="select-config-tempos" class="form-control" style="margin-top: 6px;">
+                                        <option value="4">4 Aulas diárias</option>
+                                        <option value="5">5 Aulas diárias</option>
+                                        <option value="6">6 Aulas diárias (Padrão 1 Turno)</option>
+                                        <option value="7">7 Aulas diárias</option>
+                                        <option value="8">8 Aulas diárias (Integral / EMT)</option>
+                                        <option value="9">9 Aulas diárias</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group mt-3">
+                                    <button type="button" class="btn btn-secondary" id="btn-apply-tempos-count" style="width: 100%; justify-content: center;">
+                                        <i class="fa-solid fa-sync"></i> Atualizar Tabela de Horários Abaixo
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Card 2: Segmentos / Turnos -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-header-title">
+                                    <i class="fa-solid fa-graduation-cap text-primary"></i>
+                                    <h3>Segmentos & Turnos de Ensino</h3>
+                                </div>
+                                <div class="card-actions">
+                                    <button class="btn btn-xs btn-primary" id="btn-open-modal-segmento">
+                                        <i class="fa-solid fa-plus"></i> Novo Segmento
+                                    </button>
+                                </div>
+                            </div>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                                Cadastre segmentos como <em>Ensino Médio</em>, <em>Fundamental II</em> ou <em>Integral</em> para categorizar as turmas.
+                            </p>
+                            <div class="table-responsive">
+                                <table class="data-table" id="table-config-segmentos">
+                                    <thead>
+                                        <tr>
+                                            <th>Segmento</th>
+                                            <th>Turno</th>
+                                            <th>Turmas</th>
+                                            <th style="text-align: right;">Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Renderizado via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Horários Detalhados de Início e Término -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <div class="card-header-title">
+                                <i class="fa-solid fa-clock text-primary"></i>
+                                <h3>Definição dos Horários das Aulas</h3>
+                            </div>
+                            <div class="card-actions" style="display: flex; gap: 8px;">
+                                <button type="button" class="btn btn-outline btn-xs" id="btn-preset-morning">
+                                    <i class="fa-solid fa-sun"></i> Sugerir Manhã
+                                </button>
+                                <button type="button" class="btn btn-outline btn-xs" id="btn-preset-afternoon">
+                                    <i class="fa-solid fa-cloud-sun"></i> Sugerir Tarde
+                                </button>
+                                <button type="button" class="btn btn-outline btn-xs" id="btn-preset-night">
+                                    <i class="fa-solid fa-moon"></i> Sugerir Noite
+                                </button>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+                            Configure os horários de início e término de cada tempo (ex.: <code>07:10 - 08:00</code>).
+                        </p>
+                        <form id="form-config-horarios-tempos">
+                            <div class="table-responsive">
+                                <table class="data-table" id="table-config-tempos-inputs">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 140px;">Tempo</th>
+                                            <th>Início</th>
+                                            <th>Término</th>
+                                            <th>Visualização na Grade</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-config-tempos">
+                                        <!-- Inputs gerados via JS conforme quantidade de tempos -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="modal-actions mt-3" style="justify-content: flex-end;">
+                                <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+                                    <i class="fa-solid fa-floppy-disk"></i> Salvar Configurações da Escola
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
             </div>
         </main>
     </div>
@@ -516,6 +645,13 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="input-turma-segmento"><i class="fa-solid fa-graduation-cap"></i> Segmento / Turno</label>
+                        <select id="input-turma-segmento" class="form-control">
+                            <option value="">Geral / Sem Segmento Específico</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label>Carga Horária Semanal (Aulas/Tempos por disciplina)</label>
                         <div class="workload-inputs-list" id="turma-carga-horaria-inputs">
                             <!-- Dinâmico para as disciplinas existentes -->
@@ -525,6 +661,38 @@
                     <div class="modal-actions">
                         <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CADASTRAR/EDITAR SEGMENTO -->
+    <div class="modal-overlay" id="modal-segmento">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="modal-segmento-title">Adicionar Segmento de Ensino</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-segmento">
+                    <input type="hidden" id="edit-segmento-id">
+                    <div class="form-group">
+                        <label for="input-segmento-nome"><i class="fa-solid fa-graduation-cap"></i> Nome do Segmento</label>
+                        <input type="text" id="input-segmento-nome" class="form-control" required placeholder="Ex: Ensino Médio, Fundamental II, EJA...">
+                    </div>
+                    <div class="form-group">
+                        <label for="select-segmento-turno"><i class="fa-solid fa-sun"></i> Turno</label>
+                        <select id="select-segmento-turno" class="form-control" required>
+                            <option value="Matutino">Matutino (Manhã)</option>
+                            <option value="Vespertino">Vespertino (Tarde)</option>
+                            <option value="Noturno">Noturno (Noite)</option>
+                            <option value="Integral">Integral</option>
+                        </select>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Segmento</button>
                     </div>
                 </form>
             </div>
