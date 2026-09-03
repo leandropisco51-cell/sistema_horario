@@ -32,57 +32,37 @@
                 <p>Gestão e Planejamento Escolar Inteligente</p>
             </div>
 
-            <div class="auth-tabs">
-                <button type="button" class="auth-tab-btn active" id="tab-login-btn">
-                    <i class="fa-solid fa-right-to-bracket"></i> Entrar
-                </button>
-                <button type="button" class="auth-tab-btn" id="tab-register-btn">
-                    <i class="fa-solid fa-school"></i> Nova Escola
-                </button>
-            </div>
-
             <div id="auth-alert" class="info-alert d-none"></div>
 
-            <!-- Formulário de Login -->
+            <!-- Formulário de Login Único (Escolas e Administrador) -->
             <form id="form-login" class="auth-form active">
                 <div class="form-group">
                     <label for="login-username"><i class="fa-solid fa-user"></i> Usuário</label>
-                    <input type="text" id="login-username" class="form-control" required placeholder="Ex: admin">
+                    <input type="text" id="login-username" class="form-control" required placeholder="Digite seu usuário">
                 </div>
                 <div class="form-group">
                     <label for="login-password"><i class="fa-solid fa-lock"></i> Senha</label>
                     <input type="password" id="login-password" class="form-control" required placeholder="Digite sua senha">
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 12px; justify-content: center; font-size: 0.95rem;">
-                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Acessar Escola
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Acessar Sistema
                 </button>
                 <div class="auth-hint">
-                    <p><i class="fa-solid fa-circle-info"></i> Escola Modelo de Teste: usuário <strong>admin</strong> / senha <strong>admin</strong></p>
-                </div>
-            </form>
-
-            <!-- Formulário de Cadastro de Nova Escola -->
-            <form id="form-register" class="auth-form d-none">
-                <div class="form-group">
-                    <label for="reg-school-name"><i class="fa-solid fa-school"></i> Nome da Escola</label>
-                    <input type="text" id="reg-school-name" class="form-control" required placeholder="Ex: Colégio Santos Dumont">
-                </div>
-                <div class="form-group">
-                    <label for="reg-username"><i class="fa-solid fa-user-plus"></i> Usuário de Acesso</label>
-                    <input type="text" id="reg-username" class="form-control" required placeholder="Ex: santosdumont">
-                </div>
-                <div class="form-group">
-                    <label for="reg-password"><i class="fa-solid fa-lock"></i> Senha</label>
-                    <input type="password" id="reg-password" class="form-control" required placeholder="Crie sua senha">
-                </div>
-                <button type="submit" class="btn" style="width: 100%; margin-top: 12px; padding: 12px; justify-content: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; font-size: 0.95rem;">
-                    <i class="fa-solid fa-plus-circle"></i> Cadastrar e Iniciar Escola
-                </button>
-                <div class="auth-hint">
-                    <p><i class="fa-solid fa-wand-magic-sparkles"></i> Cada nova escola inicia com o ambiente 100% limpo e isolado.</p>
+                    <p><i class="fa-solid fa-shield-halved"></i> Acesso restrito a escolas cadastradas pelo Administrador Geral.</p>
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- BANNER DE IMPERSONATION (MODO ADMINISTRADOR) -->
+    <div class="admin-impersonation-banner d-none" id="admin-impersonation-banner">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Modo Administrador: visualizando a escola <strong><span id="impersonation-school-name">Escola</span></strong></span>
+        </div>
+        <button class="btn btn-xs btn-outline" id="btn-exit-impersonation" style="color: white; border-color: rgba(255,255,255,0.4); background: rgba(0,0,0,0.2);">
+            <i class="fa-solid fa-arrow-left"></i> Voltar ao Painel Admin
+        </button>
     </div>
 
     <div class="app-container d-none" id="app-main-container">
@@ -99,6 +79,10 @@
             </div>
             
             <nav class="nav-menu">
+                <a href="#" class="nav-link d-none" id="nav-link-admin-schools" data-target="admin-schools">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Gestão de Escolas</span>
+                </a>
                 <a href="#" class="nav-link active" data-target="dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
                     <span>Dashboard</span>
@@ -153,6 +137,80 @@
             <!-- Content Sections -->
             <div class="content-wrapper">
                 
+                <!-- SECTION: ADMIN GESTÃO DE ESCOLAS -->
+                <section id="section-admin-schools" class="content-section">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: var(--primary);">
+                                <i class="fa-solid fa-school"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Total de Escolas</h3>
+                                <p class="stat-value" id="stat-admin-total-schools">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Total de Turmas</h3>
+                                <p class="stat-value" id="stat-admin-total-turmas">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
+                                <i class="fa-solid fa-chalkboard-teacher"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Total de Docentes</h3>
+                                <p class="stat-value" id="stat-admin-total-profs">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: rgba(168, 85, 247, 0.1); color: #c084fc;">
+                                <i class="fa-solid fa-book-open"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>Total de Disciplinas</h3>
+                                <p class="stat-value" id="stat-admin-total-discs">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <div class="card-header-title">
+                                <i class="fa-solid fa-school-flag text-primary"></i>
+                                <h3>Escolas Cadastradas no Chronos</h3>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn btn-primary" id="btn-open-modal-school">
+                                    <i class="fa-solid fa-plus"></i> Cadastrar Nova Escola
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="table-admin-schools">
+                                <thead>
+                                    <tr>
+                                        <th>Nome da Escola</th>
+                                        <th>Usuário</th>
+                                        <th>Turmas</th>
+                                        <th>Professores</th>
+                                        <th>Disciplinas</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right; min-width: 220px;">Ações de Gestão</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Renderizado via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- SECTION: DASHBOARD -->
                 <section id="section-dashboard" class="content-section active">
                     <div class="stats-grid">
@@ -467,6 +525,63 @@
                     <div class="modal-actions">
                         <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CADASTRAR ESCOLA -->
+    <div class="modal-overlay" id="modal-school">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="modal-school-title">Cadastrar Nova Escola</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-school">
+                    <div class="form-group">
+                        <label for="input-school-name"><i class="fa-solid fa-school"></i> Nome da Escola</label>
+                        <input type="text" id="input-school-name" class="form-control" required placeholder="Ex: Colégio Santos Dumont">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-school-username"><i class="fa-solid fa-user-plus"></i> Usuário de Acesso</label>
+                        <input type="text" id="input-school-username" class="form-control" required placeholder="Ex: santosdumont">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-school-password"><i class="fa-solid fa-lock"></i> Senha Inicial</label>
+                        <input type="password" id="input-school-password" class="form-control" required placeholder="Crie a senha inicial">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Cadastrar Escola</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REDEFINIR SENHA DA ESCOLA -->
+    <div class="modal-overlay" id="modal-school-password">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Redefinir Senha da Escola</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-school-password">
+                    <input type="hidden" id="reset-school-id">
+                    <div class="form-group">
+                        <label>Escola</label>
+                        <p id="reset-school-name-display" style="font-weight: 600; color: var(--primary); font-size: 1.05rem;"></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-new-school-password"><i class="fa-solid fa-key"></i> Nova Senha</label>
+                        <input type="password" id="input-new-school-password" class="form-control" required placeholder="Digite a nova senha">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Nova Senha</button>
                     </div>
                 </form>
             </div>

@@ -5,16 +5,39 @@
 const AuthManager = {
     STORAGE_USERS: 'chronos_auth_users',
     STORAGE_SESSION: 'chronos_auth_session',
+    STORAGE_IMPERSONATION: 'chronos_auth_impersonation',
 
     init() {
         let users = this.getUsers();
-        // Garantir que a conta padrão "admin" (Escola Modelo EMT) existe
-        if (!users.some(u => u.username === 'admin')) {
-            users.push({
-                id: 'school_demo_emt',
+        
+        // 1. Garantir que a conta mestre do Super Administrador 'admin' existe
+        let adminUser = users.find(u => u.username === 'admin');
+        if (!adminUser) {
+            adminUser = {
+                id: 'superadmin_master',
                 username: 'admin',
                 password: 'admin',
+                name: 'Administrador Geral',
+                role: 'superadmin',
+                createdAt: new Date().toISOString()
+            };
+            users.unshift(adminUser);
+            this.saveUsers(users);
+        } else if (adminUser.role !== 'superadmin') {
+            adminUser.role = 'superadmin';
+            adminUser.name = 'Administrador Geral';
+            this.saveUsers(users);
+        }
+
+        // 2. Garantir que a Escola Modelo EMT existe com login 'demo' / 'demo' (ou preservando seu histórico)
+        let demoSchool = users.find(u => u.id === 'school_demo_emt' || u.username === 'demo');
+        if (!demoSchool) {
+            users.push({
+                id: 'school_demo_emt',
+                username: 'demo',
+                password: 'demo',
                 name: 'Escola EMT (Modelo)',
+                role: 'school',
                 isDemo: true,
                 createdAt: new Date().toISOString()
             });
@@ -30,11 +53,15 @@ const AuthManager = {
         }
     },
 
+    getSchools() {
+        return this.getUsers().filter(u => u.role !== 'superadmin');
+    },
+
     saveUsers(users) {
         localStorage.setItem(this.STORAGE_USERS, JSON.stringify(users));
     },
 
-    getCurrentUser() {
+    getRealUser() {
         try {
             const session = JSON.parse(localStorage.getItem(this.STORAGE_SESSION));
             if (!session || !session.userId) return null;
@@ -45,6 +72,32 @@ const AuthManager = {
         }
     },
 
+    getCurrentUser() {
+        const realUser = this.getRealUser();
+        if (!realUser) return null;
+
+        // Se for superadmin e houver uma escola selecionada para suporte/visualização:
+        if (realUser.role === 'superadmin') {
+            const impId = localStorage.getItem(this.STORAGE_IMPERSONATION);
+            if (impId) {
+                const impSchool = this.getUsers().find(u => u.id === impId);
+                if (impSchool) {
+                    return impSchool;
+                }
+            }
+        }
+        return realUser;
+    },
+
+    isImpersonating() {
+        const realUser = this.getRealUser();
+        if (realUser && realUser.role === 'superadmin') {
+            const impId = localStorage.getItem(this.STORAGE_IMPERSONATION);
+            return !!impId;
+        }
+        return false;
+    },
+
     login(username, password) {
         this.init();
         const users = this.getUsers();
@@ -52,11 +105,12 @@ const AuthManager = {
         if (!user) {
             return { success: false, message: 'Usuário ou senha incorretos.' };
         }
+        localStorage.removeItem(this.STORAGE_IMPERSONATION);
         localStorage.setItem(this.STORAGE_SESSION, JSON.stringify({ userId: user.id, loggedAt: new Date().toISOString() }));
         return { success: true, user };
     },
 
-    register(name, username, password) {
+    createSchool(name, username, password) {
         this.init();
         username = username.trim().toLowerCase();
         name = name.trim();
@@ -67,24 +121,69 @@ const AuthManager = {
         if (users.some(u => u.username.toLowerCase() === username)) {
             return { success: false, message: 'Este nome de usuário já está em uso por outra escola.' };
         }
-        const newUser = {
+        const newSchool = {
             id: 'school_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
             username: username,
             password: password,
             name: name,
+            role: 'school',
             isDemo: false,
             createdAt: new Date().toISOString()
         };
-        users.push(newUser);
+        users.push(newSchool);
         this.saveUsers(users);
 
-        // Conectar automaticamente à nova escola criada
-        localStorage.setItem(this.STORAGE_SESSION, JSON.stringify({ userId: newUser.id, loggedAt: new Date().toISOString() }));
-        return { success: true, user: newUser };
+        // Inicializar armazenamento da escola vazio
+        localStorage.setItem(`chronos_${newSchool.id}_disciplinas`, JSON.stringify([]));
+        localStorage.setItem(`chronos_${newSchool.id}_professores`, JSON.stringify([]));
+        localStorage.setItem(`chronos_${newSchool.id}_turmas`, JSON.stringify([]));
+        localStorage.setItem(`chronos_${newSchool.id}_config`, JSON.stringify(DEFAULT_CONFIG));
+
+        return { success: true, school: newSchool };
+    },
+
+    updateSchoolPassword(schoolId, newPassword) {
+        if (!newPassword || newPassword.trim().length === 0) {
+            return { success: false, message: 'A nova senha não pode ser vazia.' };
+        }
+        const users = this.getUsers();
+        const school = users.find(u => u.id === schoolId);
+        if (!school) {
+            return { success: false, message: 'Escola não encontrada.' };
+        }
+        school.password = newPassword.trim();
+        this.saveUsers(users);
+        return { success: true, school };
+    },
+
+    deleteSchool(schoolId) {
+        let users = this.getUsers();
+        users = users.filter(u => u.id !== schoolId);
+        this.saveUsers(users);
+
+        // Limpar todas as chaves do localStorage pertencentes a essa escola
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith(`chronos_${schoolId}_`)) {
+                keysToRemove.push(k);
+            }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        return { success: true };
+    },
+
+    impersonate(schoolId) {
+        localStorage.setItem(this.STORAGE_IMPERSONATION, schoolId);
+    },
+
+    exitImpersonation() {
+        localStorage.removeItem(this.STORAGE_IMPERSONATION);
     },
 
     logout() {
         localStorage.removeItem(this.STORAGE_SESSION);
+        localStorage.removeItem(this.STORAGE_IMPERSONATION);
     }
 };
 
@@ -2313,16 +2412,20 @@ document.querySelectorAll('.nav-link').forEach(link => {
 
         // Atualizar título do cabeçalho
         const titles = {
+            'admin-schools': { title: 'Gestão de Escolas', subtitle: 'Painel administrativo central de instituições e acessos' },
             dashboard: { title: 'Dashboard', subtitle: 'Visão geral do planejamento escolar' },
             disciplinas: { title: 'Disciplinas', subtitle: 'Gerenciamento das matérias ofertadas' },
             professores: { title: 'Professores', subtitle: 'Cadastro de docentes e disponibilidades' },
             turmas: { title: 'Turmas', subtitle: 'Configuração de turmas e carga horária semanal' },
             horarios: { title: 'Grade de Horários', subtitle: 'Geração inteligente e ajuste interativo por drag-and-drop' }
         };
-        document.getElementById('current-page-title').textContent = titles[target].title;
-        document.getElementById('current-page-subtitle').textContent = titles[target].subtitle;
+        if (titles[target]) {
+            document.getElementById('current-page-title').textContent = titles[target].title;
+            document.getElementById('current-page-subtitle').textContent = titles[target].subtitle;
+        }
 
         // Renderizar conteúdo específico se necessário
+        if (target === 'admin-schools') renderAdminSchoolsPanel();
         if (target === 'disciplinas') renderDisciplinas();
         if (target === 'professores') renderProfessores();
         if (target === 'turmas') renderTurmas();
@@ -3621,11 +3724,17 @@ function handleRAGImport(event) {
 // AUTHENTICATION UI & VIEW CONTROLLERS
 // ----------------------------------------------------
 
+// ----------------------------------------------------
+// AUTHENTICATION UI & VIEW CONTROLLERS
+// ----------------------------------------------------
+
 function showAuthScreen() {
     const authScreen = document.getElementById('auth-screen');
     const appContainer = document.getElementById('app-main-container');
+    const impBanner = document.getElementById('admin-impersonation-banner');
     if (authScreen) authScreen.classList.remove('d-none');
     if (appContainer) appContainer.classList.add('d-none');
+    if (impBanner) impBanner.classList.add('d-none');
     
     const alertEl = document.getElementById('auth-alert');
     if (alertEl) {
@@ -3633,27 +3742,68 @@ function showAuthScreen() {
         alertEl.className = 'info-alert d-none';
     }
     const formLogin = document.getElementById('form-login');
-    const formReg = document.getElementById('form-register');
     if (formLogin) formLogin.reset();
-    if (formReg) formReg.reset();
 }
 
 function showAppScreen(user) {
     const authScreen = document.getElementById('auth-screen');
     const appContainer = document.getElementById('app-main-container');
+    const impBanner = document.getElementById('admin-impersonation-banner');
+    const navAdminSchools = document.getElementById('nav-link-admin-schools');
+    
     if (authScreen) authScreen.classList.add('d-none');
     if (appContainer) appContainer.classList.remove('d-none');
 
+    const realUser = AuthManager.getRealUser();
+    const isImpersonating = AuthManager.isImpersonating();
+    const isSuperAdmin = realUser && realUser.role === 'superadmin';
+
+    // Gerenciar Banner de Impersonation
+    if (isSuperAdmin && isImpersonating) {
+        if (impBanner) impBanner.classList.remove('d-none');
+        const impNameEl = document.getElementById('impersonation-school-name');
+        if (impNameEl) impNameEl.textContent = user.name;
+    } else {
+        if (impBanner) impBanner.classList.add('d-none');
+    }
+
+    // Visibilidade do Link de Gestão de Escolas na Sidebar
+    if (navAdminSchools) {
+        if (isSuperAdmin && !isImpersonating) {
+            navAdminSchools.classList.remove('d-none');
+        } else {
+            navAdminSchools.classList.add('d-none');
+        }
+    }
+
+    // Badges de Usuário e Escola no Header e Sidebar
     const badgeName = document.getElementById('school-badge-name');
     const sideSchoolName = document.getElementById('sidebar-school-name');
-    if (badgeName) badgeName.textContent = user.name || user.username;
-    if (sideSchoolName) sideSchoolName.textContent = user.name || user.username;
+    
+    if (isSuperAdmin && !isImpersonating) {
+        if (badgeName) badgeName.innerHTML = `<span class="admin-badge-role badge-role-admin">Admin</span> ${realUser.name}`;
+        if (sideSchoolName) sideSchoolName.textContent = realUser.name;
+        
+        // Ativar aba de Gestão de Escolas por padrão
+        const adminLink = document.querySelector('.nav-link[data-target="admin-schools"]');
+        if (adminLink) adminLink.click();
+        renderAdminSchoolsPanel();
+    } else {
+        const roleLabel = isImpersonating ? 'Admin > ' : '';
+        if (badgeName) badgeName.innerHTML = `<span class="admin-badge-role badge-role-school">Escola</span> ${roleLabel}${user.name}`;
+        if (sideSchoolName) sideSchoolName.textContent = user.name;
 
-    initData();
-    renderDisciplinas();
-    renderProfessores();
-    renderTurmas();
-    renderHorariosView();
+        // Inicializar e renderizar dados da escola
+        initData();
+        renderDisciplinas();
+        renderProfessores();
+        renderTurmas();
+        renderHorariosView();
+
+        // Ativar dashboard por padrão
+        const dashLink = document.querySelector('.nav-link[data-target="dashboard"]');
+        if (dashLink) dashLink.click();
+    }
 }
 
 function checkAuthAndInit() {
@@ -3666,11 +3816,121 @@ function checkAuthAndInit() {
     }
 }
 
+// Renderizar Tabela e Métricas do Painel de Escolas (Super Admin)
+function renderAdminSchoolsPanel() {
+    const schools = AuthManager.getSchools();
+    
+    let totalTurmas = 0;
+    let totalProfs = 0;
+    let totalDiscs = 0;
+
+    const schoolRows = schools.map(sch => {
+        let discs = [];
+        let profs = [];
+        let turmas = [];
+
+        try {
+            discs = JSON.parse(localStorage.getItem(`chronos_${sch.id}_disciplinas`)) || [];
+            profs = JSON.parse(localStorage.getItem(`chronos_${sch.id}_professores`)) || [];
+            turmas = JSON.parse(localStorage.getItem(`chronos_${sch.id}_turmas`)) || [];
+        } catch (e) {}
+
+        if (sch.isDemo && discs.length === 0) {
+            discs = MOCK_DISCIPLINAS;
+            profs = MOCK_PROFESSORES;
+            turmas = MOCK_TURMAS;
+        }
+
+        totalDiscs += discs.length;
+        totalProfs += profs.length;
+        totalTurmas += turmas.length;
+
+        return {
+            ...sch,
+            discCount: discs.length,
+            profCount: profs.length,
+            turmaCount: turmas.length
+        };
+    });
+
+    const elTotalSchools = document.getElementById('stat-admin-total-schools');
+    const elTotalTurmas = document.getElementById('stat-admin-total-turmas');
+    const elTotalProfs = document.getElementById('stat-admin-total-profs');
+    const elTotalDiscs = document.getElementById('stat-admin-total-discs');
+
+    if (elTotalSchools) elTotalSchools.textContent = schools.length;
+    if (elTotalTurmas) elTotalTurmas.textContent = totalTurmas;
+    if (elTotalProfs) elTotalProfs.textContent = totalProfs;
+    if (elTotalDiscs) elTotalDiscs.textContent = totalDiscs;
+
+    const tbody = document.querySelector('#table-admin-schools tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (schools.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:30px;">Nenhuma escola cadastrada ainda.</td></tr>`;
+        return;
+    }
+
+    schoolRows.forEach(sch => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">${sch.name}</div>
+                ${sch.isDemo ? '<span class="badge badge-secondary" style="font-size:0.65rem; margin-top:2px; display:inline-block;">Modelo Demo EMT</span>' : ''}
+            </td>
+            <td><code>${sch.username}</code></td>
+            <td><span class="badge badge-primary">${sch.turmaCount} turmas</span></td>
+            <td><span class="badge badge-secondary">${sch.profCount} docentes</span></td>
+            <td><span class="badge badge-secondary">${sch.discCount} matérias</span></td>
+            <td><span class="badge badge-success">Ativa</span></td>
+            <td style="text-align: right;">
+                <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+                    <button class="btn-action-view" onclick="adminAccessSchool('${sch.id}')" title="Acessar ambiente desta escola">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Acessar
+                    </button>
+                    <button class="btn-action-pwd" onclick="adminOpenResetPassword('${sch.id}', '${sch.name.replace(/'/g, "\\'")}')" title="Redefinir senha da escola">
+                        <i class="fa-solid fa-key"></i> Senha
+                    </button>
+                    ${!sch.isDemo ? `
+                    <button class="btn-icon btn-delete" onclick="adminDeleteSchool('${sch.id}', '${sch.name.replace(/'/g, "\\'")}')" title="Excluir escola">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    ` : ''}
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Ações Globais do Super Admin
+window.adminAccessSchool = function(schoolId) {
+    AuthManager.impersonate(schoolId);
+    showAppScreen(AuthManager.getCurrentUser());
+};
+
+window.adminOpenResetPassword = function(schoolId, schoolName) {
+    const inputId = document.getElementById('reset-school-id');
+    const nameDisplay = document.getElementById('reset-school-name-display');
+    const inputPwd = document.getElementById('input-new-school-password');
+    const modal = document.getElementById('modal-school-password');
+    
+    if (inputId) inputId.value = schoolId;
+    if (nameDisplay) nameDisplay.textContent = schoolName;
+    if (inputPwd) inputPwd.value = '';
+    if (modal) modal.classList.add('active');
+};
+
+window.adminDeleteSchool = function(schoolId, schoolName) {
+    if (confirm(`ATENÇÃO: Deseja realmente excluir a escola "${schoolName}" e TODOS os seus horários e cadastros? Essa ação é permanente.`)) {
+        AuthManager.deleteSchool(schoolId);
+        renderAdminSchoolsPanel();
+    }
+};
+
 function initAuthUI() {
-    const tabLogin = document.getElementById('tab-login-btn');
-    const tabReg = document.getElementById('tab-register-btn');
     const formLogin = document.getElementById('form-login');
-    const formReg = document.getElementById('form-register');
     const authAlert = document.getElementById('auth-alert');
 
     function setAuthAlert(msg, type) {
@@ -3678,24 +3938,6 @@ function initAuthUI() {
         authAlert.textContent = msg;
         authAlert.className = `info-alert ${type}`;
         authAlert.classList.remove('d-none');
-    }
-
-    if (tabLogin && tabReg && formLogin && formReg) {
-        tabLogin.addEventListener('click', () => {
-            tabLogin.classList.add('active');
-            tabReg.classList.remove('active');
-            formLogin.classList.remove('d-none');
-            formReg.classList.add('d-none');
-            if (authAlert) authAlert.classList.add('d-none');
-        });
-
-        tabReg.addEventListener('click', () => {
-            tabReg.classList.add('active');
-            tabLogin.classList.remove('active');
-            formReg.classList.remove('d-none');
-            formLogin.classList.add('d-none');
-            if (authAlert) authAlert.classList.add('d-none');
-        });
     }
 
     if (formLogin) {
@@ -3715,32 +3957,79 @@ function initAuthUI() {
         });
     }
 
-    if (formReg) {
-        formReg.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const schoolNameInput = document.getElementById('reg-school-name');
-            const usernameInput = document.getElementById('reg-username');
-            const passwordInput = document.getElementById('reg-password');
+    // Botão Voltar ao Painel Admin (quando em modo Impersonation)
+    const btnExitImp = document.getElementById('btn-exit-impersonation');
+    if (btnExitImp) {
+        btnExitImp.addEventListener('click', () => {
+            AuthManager.exitImpersonation();
+            showAppScreen(AuthManager.getRealUser());
+        });
+    }
 
-            const name = schoolNameInput ? schoolNameInput.value : '';
+    // Modal Cadastrar Nova Escola (Super Admin)
+    const btnOpenModalSchool = document.getElementById('btn-open-modal-school');
+    const modalSchool = document.getElementById('modal-school');
+    const formSchool = document.getElementById('form-school');
+
+    if (btnOpenModalSchool && modalSchool) {
+        btnOpenModalSchool.addEventListener('click', () => {
+            if (formSchool) formSchool.reset();
+            modalSchool.classList.add('active');
+        });
+    }
+
+    if (formSchool) {
+        formSchool.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nameInput = document.getElementById('input-school-name');
+            const usernameInput = document.getElementById('input-school-username');
+            const passwordInput = document.getElementById('input-school-password');
+
+            const name = nameInput ? nameInput.value : '';
             const username = usernameInput ? usernameInput.value : '';
             const password = passwordInput ? passwordInput.value : '';
 
-            const res = AuthManager.register(name, username, password);
+            const res = AuthManager.createSchool(name, username, password);
             if (res.success) {
-                showAppScreen(res.user);
+                if (modalSchool) modalSchool.classList.remove('active');
+                renderAdminSchoolsPanel();
+                alert(`Escola "${res.school.name}" cadastrada com sucesso!\nUsuário: ${res.school.username}\nSenha: ${res.school.password}`);
             } else {
-                setAuthAlert(res.message, 'danger');
+                alert('Erro ao cadastrar escola: ' + res.message);
             }
         });
     }
 
+    // Modal Redefinir Senha da Escola (Super Admin)
+    const modalSchoolPwd = document.getElementById('modal-school-password');
+    const formSchoolPwd = document.getElementById('form-school-password');
+
+    if (formSchoolPwd) {
+        formSchoolPwd.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const idInput = document.getElementById('reset-school-id');
+            const pwdInput = document.getElementById('input-new-school-password');
+
+            const schoolId = idInput ? idInput.value : '';
+            const newPassword = pwdInput ? pwdInput.value : '';
+
+            const res = AuthManager.updateSchoolPassword(schoolId, newPassword);
+            if (res.success) {
+                if (modalSchoolPwd) modalSchoolPwd.classList.remove('active');
+                alert(`Senha da escola "${res.school.name}" atualizada com sucesso!`);
+            } else {
+                alert('Erro ao atualizar senha: ' + res.message);
+            }
+        });
+    }
+
+    // Botão Sair (Logout)
     const btnLogout = document.getElementById('btn-logout');
     if (btnLogout) {
         btnLogout.addEventListener('click', () => {
             const user = AuthManager.getCurrentUser();
-            const schoolName = user ? user.name : 'sua escola';
-            if (confirm(`Deseja realmente sair da conta de "${schoolName}"?`)) {
+            const schoolName = user ? user.name : 'sua conta';
+            if (confirm(`Deseja realmente sair de "${schoolName}"?`)) {
                 AuthManager.logout();
                 state = { disciplinas: [], professores: [], turmas: [], timetable: {} };
                 showAuthScreen();
