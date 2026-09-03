@@ -10,23 +10,36 @@ const AuthManager = {
     init() {
         let users = this.getUsers();
         
-        // 1. Garantir que a conta mestre do Super Administrador 'admin' existe
+        // 1. Garantir que a conta mestre do Super Administrador 'admin' existe com a nova senha de segurança
         let adminUser = users.find(u => u.username === 'admin');
         if (!adminUser) {
             adminUser = {
                 id: 'superadmin_master',
                 username: 'admin',
-                password: 'admin',
+                password: 'Lp161176@',
                 name: 'Administrador Geral',
                 role: 'superadmin',
                 createdAt: new Date().toISOString()
             };
             users.unshift(adminUser);
             this.saveUsers(users);
-        } else if (adminUser.role !== 'superadmin') {
-            adminUser.role = 'superadmin';
-            adminUser.name = 'Administrador Geral';
-            this.saveUsers(users);
+        } else {
+            let updated = false;
+            if (adminUser.password === 'admin' || !adminUser.password) {
+                adminUser.password = 'Lp161176@';
+                updated = true;
+            }
+            if (adminUser.role !== 'superadmin') {
+                adminUser.role = 'superadmin';
+                updated = true;
+            }
+            if (adminUser.name !== 'Administrador Geral') {
+                adminUser.name = 'Administrador Geral';
+                updated = true;
+            }
+            if (updated) {
+                this.saveUsers(users);
+            }
         }
 
         // 2. Garantir que a Escola Modelo EMT existe com login 'demo' / 'demo' (ou preservando seu histórico)
