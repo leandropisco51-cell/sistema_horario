@@ -115,10 +115,19 @@ class TimetableScheduler {
         });
 
         // Heurística de ordenação: priorizar disciplinas com menos opções válidas (Most Constrained First)
-        // Aulas sem slots válidos vão para o final para não abortar precocemente o agendamento das outras matérias
+        // Disciplinas com limite diário restrito (ex: max 1 aula/dia) recebem prioridade máxima
         lessonsToSchedule.sort((a, b) => {
             if (a.validSlots === 0 && b.validSlots > 0) return 1;
             if (b.validSlots === 0 && a.validSlots > 0) return -1;
+            
+            const discA = this.disciplinas.find(d => d.id === a.disciplinaId);
+            const discB = this.disciplinas.find(d => d.id === b.disciplinaId);
+            const maxA = (discA && discA.maxAulasPorDia !== undefined) ? discA.maxAulasPorDia : 2;
+            const maxB = (discB && discB.maxAulasPorDia !== undefined) ? discB.maxAulasPorDia : 2;
+            if (maxA !== maxB) {
+                return maxA - maxB; // Prioriza disciplinas com limite diário mais restrito (ex: 1 aula/dia)
+            }
+
             return a.validSlots - b.validSlots;
         });
 
@@ -135,16 +144,30 @@ class TimetableScheduler {
                 bestTeacherSchedule = cloneTimetable(teacherSchedule);
             }
 
-            if (index >= lessonsToSchedule.length) return true;
+            if (index === lessonsToSchedule.length) {
+                return true;
+            }
 
             const lesson = lessonsToSchedule[index];
             // Se esta aula não possui nenhum slot viável, encerra essa busca mantendo o melhor resultado
             if (lesson.validSlots === 0) return false;
 
             const { turmaId, disciplinaId, professoresPossiveis } = lesson;
+            const discObj = this.disciplinas.find(d => d.id === disciplinaId);
+            const maxAulasDia = (discObj && discObj.maxAulasPorDia !== undefined) ? discObj.maxAulasPorDia : 2;
+
+            // Prioriza distribuir as aulas nos dias com menos aulas já alocadas (balanceamento pedagógico uniforme)
+            const diasOrdenados = [...this.config.dias].sort((d1, d2) => {
+                let c1 = 0, c2 = 0;
+                for (let t = 0; t < this.config.tempos; t++) {
+                    if (timetable[turmaId][d1][t] !== null) c1++;
+                    if (timetable[turmaId][d2][t] !== null) c2++;
+                }
+                return c1 - c2;
+            });
 
             for (let prof of professoresPossiveis) {
-                for (let dia of this.config.dias) {
+                for (let dia of diasOrdenados) {
                     const disponibilidadeProf = prof.disponibilidade && prof.disponibilidade[dia];
                     if (!disponibilidadeProf) continue;
 
@@ -160,7 +183,7 @@ class TimetableScheduler {
                                 aulasMesmaMateriaNoDia++;
                             }
                         }
-                        if (aulasMesmaMateriaNoDia >= 3) continue;
+                        if (aulasMesmaMateriaNoDia >= maxAulasDia) continue;
 
                         // Alocação Direta (sem clones pesados)
                         timetable[turmaId][dia][tempo] = { disciplinaId, professorId: prof.id };

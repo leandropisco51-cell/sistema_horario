@@ -89,6 +89,36 @@ const AuthManager = {
             if (!currentJoaoConfig || !currentJoaoConfig.includes('seg_fund2_6_7')) {
                 localStorage.setItem(`chronos_${joaoSchool.id}_config`, JSON.stringify(JOAO_DE_DEUS_CONFIG));
             }
+
+            // Garantir disciplina 'Inglês/Bilíngue' (5 tempos, 1 aula/dia) para o Fundamental II
+            let joaoDiscs = [];
+            try {
+                joaoDiscs = JSON.parse(localStorage.getItem(`chronos_${joaoSchool.id}_disciplinas`)) || [];
+            } catch (e) {
+                joaoDiscs = [];
+            }
+
+            let bilingueDisc = joaoDiscs.find(d => 
+                d.nome.toLowerCase().includes('bilíngue') || 
+                d.nome.toLowerCase().includes('bilingue') ||
+                d.id === 'd_ingles_bilingue'
+            );
+
+            if (!bilingueDisc) {
+                bilingueDisc = {
+                    id: 'd_ingles_bilingue',
+                    nome: 'Inglês/Bilíngue',
+                    tempos: 5,
+                    maxAulasPorDia: 1
+                };
+                joaoDiscs.push(bilingueDisc);
+                localStorage.setItem(`chronos_${joaoSchool.id}_disciplinas`, JSON.stringify(joaoDiscs));
+            } else {
+                bilingueDisc.nome = 'Inglês/Bilíngue';
+                bilingueDisc.tempos = 5;
+                bilingueDisc.maxAulasPorDia = 1;
+                localStorage.setItem(`chronos_${joaoSchool.id}_disciplinas`, JSON.stringify(joaoDiscs));
+            }
         }
     },
 
@@ -2492,6 +2522,28 @@ function initData() {
         }
     });
 
+    // Se for Escola João de Deus, assegurar Inglês/Bilíngue com 5 tempos e 1 aula/dia
+    if (user && (user.id === 'school_joao_de_deus' || user.username === 'joaodedeus')) {
+        let bilingue = state.disciplinas.find(d => 
+            d.nome.toLowerCase().includes('bilíngue') || 
+            d.nome.toLowerCase().includes('bilingue') || 
+            d.id === 'd_ingles_bilingue'
+        );
+        if (!bilingue) {
+            bilingue = {
+                id: 'd_ingles_bilingue',
+                nome: 'Inglês/Bilíngue',
+                tempos: 5,
+                maxAulasPorDia: 1
+            };
+            state.disciplinas.push(bilingue);
+        } else {
+            bilingue.nome = 'Inglês/Bilíngue';
+            bilingue.tempos = 5;
+            bilingue.maxAulasPorDia = 1;
+        }
+    }
+
     saveToStorage();
 }
 
@@ -2585,6 +2637,8 @@ document.getElementById('btn-add-disciplina').addEventListener('click', () => {
     document.getElementById('modal-disciplina-title').textContent = 'Adicionar Disciplina';
     formDisciplina.reset();
     document.getElementById('edit-disciplina-id').value = '';
+    const selMax = document.getElementById('select-disciplina-max-diario');
+    if (selMax) selMax.value = '2';
     modalDisciplina.classList.add('active');
 });
 
@@ -2593,6 +2647,8 @@ formDisciplina.addEventListener('submit', (e) => {
     const id = document.getElementById('edit-disciplina-id').value;
     const nome = document.getElementById('input-disciplina-nome').value;
     const tempos = parseInt(document.getElementById('input-disciplina-tempos').value, 10) || 4;
+    const selMax = document.getElementById('select-disciplina-max-diario');
+    const maxAulasPorDia = selMax ? (parseInt(selMax.value, 10) || 2) : 2;
 
     if (id) {
         // Editar
@@ -2600,13 +2656,15 @@ formDisciplina.addEventListener('submit', (e) => {
         if (disc) {
             disc.nome = nome;
             disc.tempos = tempos;
+            disc.maxAulasPorDia = maxAulasPorDia;
         }
     } else {
         // Novo
         state.disciplinas.push({
             id: 'd_' + Date.now(),
             nome: nome,
-            tempos: tempos
+            tempos: tempos,
+            maxAulasPorDia: maxAulasPorDia
         });
     }
 
@@ -2627,8 +2685,12 @@ function renderDisciplinas() {
 
     state.disciplinas.forEach(disc => {
         const tr = document.createElement('tr');
+        const badgeMaxDiario = (disc.maxAulasPorDia === 1)
+            ? `<span class="badge" style="background-color: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); margin-left: 6px; font-size: 0.72rem;"><i class="fa-solid fa-calendar-day"></i> 1 aula/dia</span>`
+            : '';
+
         tr.innerHTML = `
-            <td style="font-weight: 600;">${disc.nome}</td>
+            <td style="font-weight: 600;">${disc.nome} ${badgeMaxDiario}</td>
             <td><span class="badge badge-secondary">${disc.tempos || 4} tempos</span></td>
             <td style="width: 120px;">
                 <div class="action-buttons">
@@ -2649,6 +2711,8 @@ window.editDisciplina = function(id) {
     document.getElementById('edit-disciplina-id').value = disc.id;
     document.getElementById('input-disciplina-nome').value = disc.nome;
     document.getElementById('input-disciplina-tempos').value = disc.tempos || 4;
+    const selMax = document.getElementById('select-disciplina-max-diario');
+    if (selMax) selMax.value = (disc.maxAulasPorDia !== undefined) ? String(disc.maxAulasPorDia) : '2';
     modalDisciplina.classList.add('active');
 };
 

@@ -11,7 +11,7 @@
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css?v=1.3">
+    <link rel="stylesheet" href="style.css?v=1.4">
     <!-- SheetJS for Excel Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -569,6 +569,13 @@
                         <label for="input-disciplina-tempos">Quantidade de Tempos (Aulas semanais)</label>
                         <input type="number" id="input-disciplina-tempos" class="form-control" required min="1" max="15" value="4">
                     </div>
+                    <div class="form-group">
+                        <label for="select-disciplina-max-diario"><i class="fa-solid fa-calendar-day"></i> Limite Diário de Aulas</label>
+                        <select id="select-disciplina-max-diario" class="form-control">
+                            <option value="2">Padrão (até 2 aulas no mesmo dia / geminadas permitidas)</option>
+                            <option value="1">1 aula por dia (obrigatório 1 tempo diário - ex: Inglês/Bilíngue)</option>
+                        </select>
+                    </div>
                     <div class="modal-actions">
                         <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Salvar</button>
@@ -793,7 +800,7 @@
     </div>
 
     <!-- JS Files -->
-    <script src="scheduler.js?v=1.3"></script>
-    <script src="app.js?v=1.3"></script>
+    <script src="scheduler.js?v=1.4"></script>
+    <script src="app.js?v=1.4"></script>
 </body>
 </html>
