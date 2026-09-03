@@ -11,7 +11,7 @@
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.2">
     <!-- SheetJS for Excel Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -44,7 +44,7 @@
                     <label for="login-password"><i class="fa-solid fa-lock"></i> Senha</label>
                     <div class="password-input-wrapper">
                         <input type="password" id="login-password" class="form-control" required placeholder="Digite sua senha" autocomplete="current-password">
-                        <button type="button" id="btn-toggle-login-password" class="btn-toggle-password" title="Visualizar senha" aria-label="Visualizar senha">
+                        <button type="button" id="btn-toggle-login-password" class="btn-toggle-password" onclick="window.togglePasswordVisibility('login-password', this)" title="Visualizar senha" aria-label="Visualizar senha">
                             <i class="fa-solid fa-eye"></i>
                         </button>
                     </div>
@@ -746,7 +746,7 @@
                         <label for="input-school-password"><i class="fa-solid fa-lock"></i> Senha Inicial</label>
                         <div class="password-input-wrapper">
                             <input type="password" id="input-school-password" class="form-control" required placeholder="Crie a senha inicial">
-                            <button type="button" id="btn-toggle-school-password" class="btn-toggle-password" title="Visualizar senha" aria-label="Visualizar senha">
+                            <button type="button" id="btn-toggle-school-password" class="btn-toggle-password" onclick="window.togglePasswordVisibility('input-school-password', this)" title="Visualizar senha" aria-label="Visualizar senha">
                                 <i class="fa-solid fa-eye"></i>
                             </button>
                         </div>
@@ -778,7 +778,7 @@
                         <label for="input-new-school-password"><i class="fa-solid fa-key"></i> Nova Senha</label>
                         <div class="password-input-wrapper">
                             <input type="password" id="input-new-school-password" class="form-control" required placeholder="Digite a nova senha">
-                            <button type="button" id="btn-toggle-reset-password" class="btn-toggle-password" title="Visualizar senha" aria-label="Visualizar senha">
+                            <button type="button" id="btn-toggle-reset-password" class="btn-toggle-password" onclick="window.togglePasswordVisibility('input-new-school-password', this)" title="Visualizar senha" aria-label="Visualizar senha">
                                 <i class="fa-solid fa-eye"></i>
                             </button>
                         </div>
@@ -793,7 +793,7 @@
     </div>
 
     <!-- JS Files -->
-    <script src="scheduler.js"></script>
-    <script src="app.js"></script>
+    <script src="scheduler.js?v=1.2"></script>
+    <script src="app.js?v=1.2"></script>
 </body>
 </html>

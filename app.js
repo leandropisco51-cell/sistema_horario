@@ -4120,6 +4120,32 @@ window.adminDeleteSchool = function(schoolId, schoolName) {
     }
 };
 
+// Função global de alternar visibilidade de senha (inline e listener)
+window.togglePasswordVisibility = function(inputId, btnEl) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    const icon = btnEl ? btnEl.querySelector('i') : null;
+    if (icon) {
+        if (isPassword) {
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+            if (btnEl) {
+                btnEl.title = 'Ocultar senha';
+                btnEl.setAttribute('aria-label', 'Ocultar senha');
+            }
+        } else {
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+            if (btnEl) {
+                btnEl.title = 'Visualizar senha';
+                btnEl.setAttribute('aria-label', 'Visualizar senha');
+            }
+        }
+    }
+};
+
 function initAuthUI() {
     const formLogin = document.getElementById('form-login');
     const authAlert = document.getElementById('auth-alert');
@@ -4134,28 +4160,12 @@ function initAuthUI() {
     // Configurar botões de alternar visualização de senha
     function setupPasswordToggle(buttonId, inputId) {
         const btn = document.getElementById(buttonId);
-        const input = document.getElementById(inputId);
-        if (!btn || !input) return;
+        if (!btn) return;
 
-        btn.addEventListener('click', (e) => {
+        btn.onclick = (e) => {
             e.preventDefault();
-            const isPassword = input.type === 'password';
-            input.type = isPassword ? 'text' : 'password';
-            const icon = btn.querySelector('i');
-            if (icon) {
-                if (isPassword) {
-                    icon.classList.remove('fa-eye');
-                    icon.classList.add('fa-eye-slash');
-                    btn.title = 'Ocultar senha';
-                    btn.setAttribute('aria-label', 'Ocultar senha');
-                } else {
-                    icon.classList.remove('fa-eye-slash');
-                    icon.classList.add('fa-eye');
-                    btn.title = 'Visualizar senha';
-                    btn.setAttribute('aria-label', 'Visualizar senha');
-                }
-            }
-        });
+            window.togglePasswordVisibility(inputId, btn);
+        };
     }
 
     setupPasswordToggle('btn-toggle-login-password', 'login-password');
