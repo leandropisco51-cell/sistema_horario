@@ -690,6 +690,27 @@
                             <option value="Integral">Integral</option>
                         </select>
                     </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label for="input-segmento-merenda-horario"><i class="fa-solid fa-utensils"></i> Horário da Merenda</label>
+                            <input type="text" id="input-segmento-merenda-horario" class="form-control" placeholder="Ex: 08:55 às 09:15">
+                        </div>
+                        <div class="form-group">
+                            <label for="select-segmento-merenda-pos"><i class="fa-solid fa-clock"></i> Recreio após qual tempo?</label>
+                            <select id="select-segmento-merenda-pos" class="form-control">
+                                <option value="2">Após o 2º tempo</option>
+                                <option value="3" selected>Após o 3º tempo</option>
+                                <option value="4">Após o 4º tempo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="select-segmento-modelo-tempos"><i class="fa-solid fa-calendar-week"></i> Estrutura Semanal de Aulas</label>
+                        <select id="select-segmento-modelo-tempos" class="form-control">
+                            <option value="padrao">Padrão da Escola (todos os dias iguais)</option>
+                            <option value="fund2_5_6">Fundamental 2 (4 dias com 5 aulas e 1 dia com 6 aulas)</option>
+                        </select>
+                    </div>
                     <div class="modal-actions">
                         <button type="button" class="btn btn-outline btn-close-modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Salvar Segmento</button>

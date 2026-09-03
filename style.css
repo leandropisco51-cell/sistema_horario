@@ -826,6 +826,33 @@ body {
     transform: scale(1.01);
 }
 
+.timetable-interval-cell {
+    background: rgba(245, 158, 11, 0.05);
+    border: 1px dashed rgba(245, 158, 11, 0.35);
+    border-radius: var(--radius-md);
+    color: #fbbf24;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 4px;
+}
+
+.cell-sem-aula {
+    background: rgba(255, 255, 255, 0.015) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.1) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--text-muted) !important;
+    font-size: 0.75rem !important;
+    cursor: not-allowed !important;
+    user-select: none;
+}
+
 /* Cartões de Aulas Arrastáveis (PREMIUM SLATE LOOK) */
 .lesson-card {
     width: 100%;

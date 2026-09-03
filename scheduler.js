@@ -15,6 +15,15 @@ class TimetableScheduler {
         });
     }
 
+    isSlotDisabledForTurma(turmaId, dia, tempo) {
+        const turma = this.turmas.find(t => t.id === turmaId);
+        if (!turma || !turma.segmentoId) return false;
+        const seg = (this.config.segmentos || []).find(s => s.id === turma.segmentoId);
+        if (!seg || !seg.temposPorDia) return false;
+        const maxTemposNoDia = seg.temposPorDia[dia] !== undefined ? seg.temposPorDia[dia] : this.config.tempos;
+        return tempo >= maxTemposNoDia;
+    }
+
     generate(targetTurmaId, existingTimetable) {
         let lessonsToSchedule = [];
         
@@ -94,6 +103,7 @@ class TimetableScheduler {
                     const disp = prof.disponibilidade && prof.disponibilidade[dia];
                     if (disp) {
                         for (let tempo = 0; tempo < this.config.tempos; tempo++) {
+                            if (this.isSlotDisabledForTurma(l.turmaId, dia, tempo)) continue;
                             if (disp.includes(tempo) && teacherSchedule[prof.id][dia][tempo] === null) {
                                 validSlots++;
                             }
@@ -139,6 +149,7 @@ class TimetableScheduler {
                     if (!disponibilidadeProf) continue;
 
                     for (let tempo = 0; tempo < this.config.tempos; tempo++) {
+                        if (this.isSlotDisabledForTurma(turmaId, dia, tempo)) continue;
                         if (!disponibilidadeProf.includes(tempo)) continue;
                         if (timetable[turmaId][dia][tempo] !== null) continue;
                         if (teacherSchedule[prof.id][dia][tempo] !== null) continue;

@@ -56,6 +56,34 @@ const AuthManager = {
             });
             this.saveUsers(users);
         }
+
+        // 3. Garantir que a Escola João de Deus está configurada com a estrutura especial solicitada
+        let joaoSchool = users.find(u => 
+            u.username === 'joaodedeus' || 
+            (u.name && u.name.toLowerCase().includes('joão de deus')) ||
+            (u.name && u.name.toLowerCase().includes('joao de deus'))
+        );
+        if (!joaoSchool) {
+            joaoSchool = {
+                id: 'school_joao_de_deus',
+                username: 'joaodedeus',
+                password: 'joao123',
+                name: 'Escola João de Deus',
+                role: 'school',
+                isDemo: false,
+                createdAt: new Date().toISOString()
+            };
+            users.push(joaoSchool);
+            this.saveUsers(users);
+        }
+
+        // Aplicar a configuração específica solicitada para a Escola João de Deus
+        if (joaoSchool) {
+            const currentJoaoConfig = localStorage.getItem(`chronos_${joaoSchool.id}_config`);
+            if (!currentJoaoConfig || !currentJoaoConfig.includes('seg_fund2_6_7')) {
+                localStorage.setItem(`chronos_${joaoSchool.id}_config`, JSON.stringify(JOAO_DE_DEUS_CONFIG));
+            }
+        }
     },
 
     getUsers() {
@@ -226,6 +254,63 @@ const DEFAULT_CONFIG = {
     segmentos: [
         { id: "seg_default_1", nome: "Ensino Médio", turno: "Matutino" },
         { id: "seg_default_2", nome: "Ensino Fundamental II", turno: "Vespertino" }
+    ]
+};
+
+const JOAO_DE_DEUS_CONFIG = {
+    dias: [2, 3, 4, 5, 6],
+    diasNomes: { 2: 'Segunda', 3: 'Terça', 4: 'Quarta', 5: 'Quinta', 6: 'Sexta', 7: 'Sábado' },
+    tempos: 6,
+    temposHorarios: ["07:15 - 08:05", "08:05 - 08:55", "08:55 - 09:45", "09:45 - 10:35", "10:55 - 11:45", "11:45 - 12:35"],
+    segmentos: [
+        {
+            id: "seg_fund2_6_7",
+            nome: "Fundamental 2 (6º e 7º Ano)",
+            turno: "Matutino",
+            merendaAposTempo: 2, // Após o 2º tempo (08:55 às 09:15)
+            horarioMerenda: "08:55 às 09:15",
+            temposPorDia: { 2: 5, 3: 5, 4: 5, 5: 5, 6: 6 }, // 4 dias com 5 tempos, Sexta com 6 tempos
+            temposHorarios: [
+                "07:15 - 08:05",
+                "08:05 - 08:55",
+                "09:15 - 10:05",
+                "10:05 - 10:55",
+                "10:55 - 11:45",
+                "11:45 - 12:35"
+            ]
+        },
+        {
+            id: "seg_fund2_8_9",
+            nome: "Fundamental 2 (8º e 9º Ano)",
+            turno: "Matutino",
+            merendaAposTempo: 3, // Após o 3º tempo (09:45 às 10:05)
+            horarioMerenda: "09:45 às 10:05",
+            temposPorDia: { 2: 5, 3: 5, 4: 5, 5: 5, 6: 6 }, // 4 dias com 5 tempos, Sexta com 6 tempos
+            temposHorarios: [
+                "07:15 - 08:05",
+                "08:05 - 08:55",
+                "08:55 - 09:45",
+                "10:05 - 10:55",
+                "10:55 - 11:45",
+                "11:45 - 12:35"
+            ]
+        },
+        {
+            id: "seg_medio",
+            nome: "Ensino Médio",
+            turno: "Matutino",
+            merendaAposTempo: 4, // Após o 4º tempo (10:35 às 10:55)
+            horarioMerenda: "10:35 às 10:55",
+            temposPorDia: { 2: 6, 3: 6, 4: 6, 5: 6, 6: 6 }, // 6 tempos todos os dias
+            temposHorarios: [
+                "07:15 - 08:05",
+                "08:05 - 08:55",
+                "08:55 - 09:45",
+                "09:45 - 10:35",
+                "10:55 - 11:45",
+                "11:45 - 12:35"
+            ]
+        }
     ]
 };
 
@@ -3217,8 +3302,21 @@ function renderHorariosGrid() {
         return;
     }
 
+    // Identificar segmento da turma se estiver no modo turma
+    let currentTurma = null;
+    let currentSegment = null;
+    if (viewMode === 'turma') {
+        currentTurma = state.turmas.find(t => t.id === currentTurmaId);
+        if (currentTurma && currentTurma.segmentoId) {
+            currentSegment = (activeConfig.segmentos || []).find(s => s.id === currentTurma.segmentoId);
+        }
+    }
+
+    const hasSegmentMerenda = currentSegment && currentSegment.merendaAposTempo !== undefined;
+    const merendaTempo = hasSegmentMerenda ? currentSegment.merendaAposTempo : 3;
+    const merendaHorario = hasSegmentMerenda ? (currentSegment.horarioMerenda || '09:40 - 10:10') : '09:40 - 10:10';
+
     // 1. Renderizar cabeçalho da tabela (Dias da Semana)
-    // Célula vazia no canto superior esquerdo
     const headerCorner = document.createElement('div');
     headerCorner.className = 'timetable-header-cell';
     headerCorner.innerHTML = '<i class="fa-solid fa-clock-o"></i> Horário';
@@ -3233,38 +3331,65 @@ function renderHorariosGrid() {
 
     // 2. Renderizar linhas por Período/Tempo
     for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
-        // Se a escola tiver mais de 4 tempos e for o 4º tempo (index 3), insere a linha visual do Intervalo
-        if (activeConfig.tempos > 4 && tempo === 3) {
+        // Inserir linha visual de Intervalo/Merenda no tempo configurado
+        const shouldInsertInterval = hasSegmentMerenda ? (tempo === merendaTempo) : (activeConfig.tempos > 4 && tempo === 3);
+        if (shouldInsertInterval) {
             const intervalTimeCell = document.createElement('div');
             intervalTimeCell.className = 'timetable-time-cell';
-            intervalTimeCell.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
-            intervalTimeCell.innerHTML = `<strong>RECREIO</strong><span>Intervalo</span>`;
+            intervalTimeCell.style.backgroundColor = 'rgba(245, 158, 11, 0.08)';
+            intervalTimeCell.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            intervalTimeCell.innerHTML = `<strong style="color: #fbbf24;">MERENDA</strong><span style="color: #fbbf24; font-size: 0.72rem;">${merendaHorario}</span>`;
             root.appendChild(intervalTimeCell);
 
             const intervalCell = document.createElement('div');
+            intervalCell.className = 'timetable-interval-cell';
             intervalCell.style.gridColumn = `span ${activeConfig.dias.length}`;
             intervalCell.style.display = 'flex';
             intervalCell.style.alignItems = 'center';
             intervalCell.style.justifyContent = 'center';
-            intervalCell.style.background = 'rgba(255, 255, 255, 0.01)';
-            intervalCell.style.border = '1px dashed var(--border-color)';
+            intervalCell.style.background = 'rgba(245, 158, 11, 0.05)';
+            intervalCell.style.border = '1px dashed rgba(245, 158, 11, 0.35)';
             intervalCell.style.borderRadius = 'var(--radius-md)';
-            intervalCell.style.color = 'var(--text-muted)';
+            intervalCell.style.color = '#fbbf24';
             intervalCell.style.fontSize = '0.85rem';
-            intervalCell.style.fontWeight = '600';
-            intervalCell.innerHTML = '<i class="fa-solid fa-coffee" style="margin-right: 6px;"></i> INTERVALO / RECREIO';
+            intervalCell.style.fontWeight = '700';
+            intervalCell.innerHTML = `<i class="fa-solid fa-utensils" style="margin-right: 8px;"></i> MERENDA / INTERVALO (${merendaHorario})`;
             root.appendChild(intervalCell);
         }
 
         // Primeira célula da linha: Identificação do Tempo
         const timeCell = document.createElement('div');
         timeCell.className = 'timetable-time-cell';
-        const horarioStr = (activeConfig.temposHorarios && activeConfig.temposHorarios[tempo]) ? activeConfig.temposHorarios[tempo] : '';
+        let horarioStr = (activeConfig.temposHorarios && activeConfig.temposHorarios[tempo]) ? activeConfig.temposHorarios[tempo] : '';
+        if (currentSegment && currentSegment.temposHorarios && currentSegment.temposHorarios[tempo]) {
+            horarioStr = currentSegment.temposHorarios[tempo];
+        }
         timeCell.innerHTML = `<strong>${tempo + 1}º Tempo</strong><span>${horarioStr}</span>`;
         root.appendChild(timeCell);
 
         // Células dos dias letivos
         activeConfig.dias.forEach(dia => {
+            // Verificar se este dia/tempo está desabilitado para a turma deste segmento (ex: 4 dias com 5 tempos)
+            if (viewMode === 'turma' && currentSegment && currentSegment.temposPorDia) {
+                const maxTemposNoDia = currentSegment.temposPorDia[dia] !== undefined ? currentSegment.temposPorDia[dia] : activeConfig.tempos;
+                if (tempo >= maxTemposNoDia) {
+                    const disabledCell = document.createElement('div');
+                    disabledCell.className = 'timetable-cell cell-sem-aula';
+                    disabledCell.style.background = 'rgba(255, 255, 255, 0.02)';
+                    disabledCell.style.border = '1px dashed rgba(255, 255, 255, 0.12)';
+                    disabledCell.style.display = 'flex';
+                    disabledCell.style.flexDirection = 'column';
+                    disabledCell.style.alignItems = 'center';
+                    disabledCell.style.justifyContent = 'center';
+                    disabledCell.style.color = 'var(--text-muted)';
+                    disabledCell.style.fontSize = '0.75rem';
+                    disabledCell.style.cursor = 'not-allowed';
+                    disabledCell.innerHTML = '<i class="fa-solid fa-ban" style="opacity: 0.35; margin-bottom: 3px;"></i><span style="opacity: 0.6; font-weight: 500;">Sem Aula</span>';
+                    root.appendChild(disabledCell);
+                    return;
+                }
+            }
+
             const cell = document.createElement('div');
             cell.className = 'timetable-cell';
             cell.setAttribute('data-dia', dia);
@@ -4331,14 +4456,34 @@ function initSchoolConfigUI() {
             e.preventDefault();
             const nome = document.getElementById('input-segmento-nome').value.trim();
             const turno = document.getElementById('select-segmento-turno').value;
+            const merendaHorarioInput = document.getElementById('input-segmento-merenda-horario');
+            const merendaPosSelect = document.getElementById('select-segmento-merenda-pos');
+            const modeloTemposSelect = document.getElementById('select-segmento-modelo-tempos');
+
+            const merendaHorario = merendaHorarioInput ? merendaHorarioInput.value.trim() : '';
+            const merendaPos = merendaPosSelect ? parseInt(merendaPosSelect.value, 10) : 3;
+            const modeloTempos = modeloTemposSelect ? modeloTemposSelect.value : 'padrao';
+
             if (!nome) return;
 
             if (!activeConfig.segmentos) activeConfig.segmentos = [];
-            activeConfig.segmentos.push({
+
+            const newSeg = {
                 id: 'seg_' + Date.now(),
                 nome: nome,
                 turno: turno
-            });
+            };
+
+            if (merendaHorario) {
+                newSeg.horarioMerenda = merendaHorario;
+                newSeg.merendaAposTempo = merendaPos;
+            }
+
+            if (modeloTempos === 'fund2_5_6') {
+                newSeg.temposPorDia = { 2: 5, 3: 5, 4: 5, 5: 5, 6: 6 };
+            }
+
+            activeConfig.segmentos.push(newSeg);
 
             localStorage.setItem(getSchoolKey('config'), JSON.stringify(activeConfig));
             if (modalSegmento) modalSegmento.classList.remove('active');
