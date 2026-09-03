@@ -57,7 +57,7 @@ const AuthManager = {
             this.saveUsers(users);
         }
 
-        // 3. Garantir que a Escola João de Deus está configurada com a estrutura especial solicitada
+        // 3. Garantir que a Escola João de Deus está configurada com a estrutura especial e senha oficial
         let joaoSchool = users.find(u => 
             u.username === 'joaodedeus' || 
             (u.name && u.name.toLowerCase().includes('joão de deus')) ||
@@ -67,7 +67,7 @@ const AuthManager = {
             joaoSchool = {
                 id: 'school_joao_de_deus',
                 username: 'joaodedeus',
-                password: 'joao123',
+                password: 'Anapaula@',
                 name: 'Escola João de Deus',
                 role: 'school',
                 isDemo: false,
@@ -75,6 +75,12 @@ const AuthManager = {
             };
             users.push(joaoSchool);
             this.saveUsers(users);
+        } else {
+            // Sincronizar a senha oficial 'Anapaula@' caso o navegador ainda tenha a antiga (joao123)
+            if (joaoSchool.password !== 'Anapaula@') {
+                joaoSchool.password = 'Anapaula@';
+                this.saveUsers(users);
+            }
         }
 
         // Aplicar a configuração específica solicitada para a Escola João de Deus
@@ -141,8 +147,13 @@ const AuthManager = {
 
     login(username, password) {
         this.init();
+        const cleanUser = (username || '').trim().toLowerCase();
+        const cleanPass = (password || '').trim();
         const users = this.getUsers();
-        const user = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password);
+        const user = users.find(u => 
+            u.username.toLowerCase() === cleanUser && 
+            (u.password === password || u.password === cleanPass)
+        );
         if (!user) {
             return { success: false, message: 'Usuário ou senha incorretos.' };
         }
