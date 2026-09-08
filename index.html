@@ -11,7 +11,7 @@
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css?v=1.5">
+    <link rel="stylesheet" href="style.css?v=1.6">
     <!-- SheetJS for Excel Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -386,8 +386,11 @@
                                 <!-- Dinâmico -->
                             </select>
                         </div>
-                        <button class="btn btn-secondary" id="btn-generate-timetable">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Horário Automático
+                        <button class="btn btn-primary" id="btn-generate-all-timetables" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; font-weight: 700; box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);">
+                            <i class="fa-solid fa-sparkles"></i> Gerar Grade da Escola Toda
+                        </button>
+                        <button class="btn btn-secondary" id="btn-generate-timetable" title="Gera o horário apenas para a turma selecionada no menu acima">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Apenas Turma Atual
                         </button>
                         <button class="btn" id="btn-save-current-timetable" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);">
                             <i class="fa-solid fa-floppy-disk"></i> Salvar Horário
@@ -663,6 +666,21 @@
                         </select>
                     </div>
 
+                    <div class="form-group" id="group-turma-dia-6-tempos">
+                        <label for="select-turma-dia-6-tempos"><i class="fa-solid fa-clock"></i> Dia com 6 Tempos (Fundamental II)</label>
+                        <select id="select-turma-dia-6-tempos" class="form-control">
+                            <option value="auto">Automático (O gerador escolhe o melhor dia sem conflitos)</option>
+                            <option value="2">Segunda-feira</option>
+                            <option value="3">Terça-feira</option>
+                            <option value="4">Quarta-feira</option>
+                            <option value="5">Quinta-feira</option>
+                            <option value="6">Sexta-feira</option>
+                        </select>
+                        <small style="color: var(--text-muted); font-size: 0.74rem; display: block; margin-top: 4px;">
+                            <i class="fa-solid fa-circle-info"></i> No Fundamental II são 4 dias com 5 tempos e 1 dia com 6 tempos. Pode ser qualquer dia da semana.
+                        </small>
+                    </div>
+
                     <div class="form-group">
                         <label>Carga Horária Semanal (Aulas/Tempos por disciplina)</label>
                         <div class="workload-inputs-list" id="turma-carga-horaria-inputs">
@@ -802,7 +820,7 @@
     </div>
 
     <!-- JS Files -->
-    <script src="scheduler.js?v=1.5"></script>
-    <script src="app.js?v=1.5"></script>
+    <script src="scheduler.js?v=1.6"></script>
+    <script src="app.js?v=1.6"></script>
 </body>
 </html>

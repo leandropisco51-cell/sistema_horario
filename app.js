@@ -3041,6 +3041,8 @@ document.getElementById('btn-add-turma').addEventListener('click', () => {
     document.getElementById('modal-turma-title').textContent = 'Adicionar Turma';
     formTurma.reset();
     document.getElementById('edit-turma-id').value = '';
+    const selectDia6 = document.getElementById('select-turma-dia-6-tempos');
+    if (selectDia6) selectDia6.value = 'auto';
     populateSegmentosSelect();
     renderTurmaCargaInputs({});
     modalTurma.classList.add('active');
@@ -3052,6 +3054,8 @@ formTurma.addEventListener('submit', (e) => {
     const nome = document.getElementById('input-turma-nome').value;
     const selectSeg = document.getElementById('input-turma-segmento');
     const segmentoId = selectSeg ? selectSeg.value : '';
+    const selectDia6 = document.getElementById('select-turma-dia-6-tempos');
+    const diaCom6Tempos = selectDia6 ? selectDia6.value : 'auto';
 
     // Coletar cargas horárias
     const cargaHoraria = {};
@@ -3069,6 +3073,7 @@ formTurma.addEventListener('submit', (e) => {
         if (turma) {
             turma.nome = nome;
             turma.segmentoId = segmentoId || null;
+            turma.diaCom6Tempos = diaCom6Tempos;
             turma.cargaHoraria = cargaHoraria;
         }
     } else {
@@ -3077,6 +3082,7 @@ formTurma.addEventListener('submit', (e) => {
             id: 't_' + Date.now(),
             nome: nome,
             segmentoId: segmentoId || null,
+            diaCom6Tempos: diaCom6Tempos,
             cargaHoraria: cargaHoraria
         });
     }
@@ -3096,6 +3102,8 @@ function renderTurmas() {
         return;
     }
 
+    const mapDiaNome = { 'auto': 'Auto', '2': 'Seg', '3': 'Ter', '4': 'Qua', '5': 'Qui', '6': 'Sex' };
+
     state.turmas.forEach(turma => {
         let listCargaText = [];
         Object.entries(turma.cargaHoraria || {}).forEach(([dId, horas]) => {
@@ -3107,10 +3115,17 @@ function renderTurmas() {
 
         const seg = (activeConfig.segmentos || []).find(s => s.id === turma.segmentoId);
         const segBadge = seg ? `<span class="badge badge-secondary" style="font-size:0.75rem; margin-left: 8px;"><i class="fa-solid fa-graduation-cap"></i> ${seg.nome} (${seg.turno})</span>` : '';
+        
+        let dia6Badge = '';
+        if (seg && (seg.id.includes('fund2') || seg.nome.toLowerCase().includes('fundamental'))) {
+            const diaEscolhido = turma.diaCom6Tempos || turma.diaCom6TemposEfetivo || 'auto';
+            const nomeDia = mapDiaNome[diaEscolhido] || diaEscolhido;
+            dia6Badge = `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-size: 0.72rem; margin-left: 6px;"><i class="fa-solid fa-clock"></i> 6 tempos: ${nomeDia}</span>`;
+        }
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="font-weight: 600;">${turma.nome} ${segBadge}</td>
+            <td style="font-weight: 600;">${turma.nome} ${segBadge} ${dia6Badge}</td>
             <td><span class="badge badge-primary">${listCargaText.join(', ') || 'Nenhuma carga configurada'}</span></td>
             <td style="width: 120px;">
                 <div class="action-buttons">
@@ -3128,20 +3143,19 @@ function renderTurmaCargaInputs(cargaExistente = {}) {
     container.innerHTML = '';
 
     if (state.disciplinas.length === 0) {
-        container.innerHTML = `<span style="color: var(--text-muted); font-size: 0.85rem;">Cadastre disciplinas primeiro para definir a carga horária.</span>`;
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Nenhuma disciplina cadastrada. Cadastre disciplinas primeiro.</p>';
         return;
     }
 
     state.disciplinas.forEach(d => {
-        // Se já houver uma carga configurada (inclusive 0), usa ela; senão usa os tempos da disciplina
-        const horasVal = cargaExistente[d.id] !== undefined ? cargaExistente[d.id] : (d.tempos || 4);
-        const div = document.createElement('div');
-        div.className = 'workload-item';
-        div.innerHTML = `
-            <span>${d.nome} (padrão: ${d.tempos || 4}h)</span>
-            <input type="number" min="0" max="25" class="form-control workload-input" data-disciplina-id="${d.id}" value="${horasVal}" placeholder="0">
+        const row = document.createElement('div');
+        row.className = 'workload-input-row';
+        const val = cargaExistente[d.id] !== undefined ? cargaExistente[d.id] : d.tempos;
+        row.innerHTML = `
+            <span>${d.nome}</span>
+            <input type="number" min="0" max="20" class="form-control workload-input" data-disciplina-id="${d.id}" value="${val}">
         `;
-        container.appendChild(div);
+        container.appendChild(row);
     });
 }
 
@@ -3155,6 +3169,8 @@ window.editTurma = function(id) {
     document.getElementById('input-turma-nome').value = turma.nome;
     const selectSeg = document.getElementById('input-turma-segmento');
     if (selectSeg) selectSeg.value = turma.segmentoId || '';
+    const selectDia6 = document.getElementById('select-turma-dia-6-tempos');
+    if (selectDia6) selectDia6.value = turma.diaCom6Tempos || 'auto';
 
     renderTurmaCargaInputs(turma.cargaHoraria);
     modalTurma.classList.add('active');
@@ -3199,6 +3215,11 @@ selectTimetableTurma.addEventListener('change', renderHorariosGrid);
 selectTimetableProfessor.addEventListener('change', renderHorariosGrid);
 
 // Geração Automática
+const btnGenerateAll = document.getElementById('btn-generate-all-timetables');
+if (btnGenerateAll) {
+    btnGenerateAll.addEventListener('click', generateAllTimetablesFlow);
+}
+
 document.getElementById('btn-generate-timetable').addEventListener('click', generateTimetableFlow);
 document.getElementById('btn-quick-generate').addEventListener('click', () => {
     // Mudar para seção de horários (apenas navega, sem gerar automaticamente)
@@ -3271,11 +3292,12 @@ document.getElementById('btn-compact-timetable').addEventListener('click', () =>
     });
     
     if (changed) {
+        localStorage.setItem(getSchoolKey(`timetable_${currentTurmaId}`), JSON.stringify(state.timetable[currentTurmaId]));
         renderHorariosGrid();
         if (conflictsSkipped > 0) {
-            showGenerationMessage(`Tempos vagos compactados! (${conflictsSkipped} aulas mantidas para evitar choques ou respeitar disponibilidades). Clique em "Salvar Horário".`, 'warning');
+            showGenerationMessage(`Tempos vagos compactados! (${conflictsSkipped} aulas mantidas para evitar choques ou respeitar disponibilidades).`, 'warning');
         } else {
-            showGenerationMessage('Tempos vagos retirados com sucesso! Lembre-se de clicar em "Salvar Horário".', 'warning');
+            showGenerationMessage('Tempos vagos retirados e horários salvos com sucesso!', 'success');
         }
     } else {
         if (conflictsSkipped > 0) {
@@ -3294,13 +3316,15 @@ document.getElementById('btn-reset-timetable').addEventListener('click', () => {
         activeConfig.dias.forEach(dia => {
             state.timetable[currentTurmaId][dia] = Array(activeConfig.tempos).fill(null);
         });
+        localStorage.removeItem(getSchoolKey(`timetable_${currentTurmaId}`));
         renderHorariosGrid();
-        showGenerationMessage('Horários da turma limpos em memória. Lembre-se de clicar em "Salvar Horário".', 'warning');
+        showGenerationMessage('Horários da turma limpos com sucesso.', 'warning');
     }
 });
 
 function showGenerationMessage(msg, type) {
     const alertEl = document.getElementById('generation-message');
+    if (!alertEl) return;
     alertEl.textContent = msg;
     alertEl.className = `info-alert ${type}`;
     alertEl.classList.remove('d-none');
@@ -3309,6 +3333,47 @@ function showGenerationMessage(msg, type) {
     }, 8000);
 }
 
+// GERAÇÃO GLOBAL: TODAS AS TURMAS DA ESCOLA
+function generateAllTimetablesFlow() {
+    if (state.turmas.length === 0 || state.professores.length === 0) {
+        showGenerationMessage('Cadastre turmas, disciplinas e professores antes de gerar o horário.', 'danger');
+        return;
+    }
+
+    if (!confirm(`Deseja gerar a grade de horários para TODAS as ${state.turmas.length} turmas da escola? Os horários gerados serão automaticamente calculados e salvos para todas as turmas.`)) {
+        return;
+    }
+
+    showGenerationMessage('Gerando grade completa de todas as turmas...', 'info');
+
+    const scheduler = new window.TimetableScheduler(state.turmas, state.professores, state.disciplinas, activeConfig);
+    const result = scheduler.generate(null, null);
+
+    if (result.timetable) {
+        state.timetable = result.timetable;
+        
+        // Salvar automaticamente para cada turma no localStorage
+        state.turmas.forEach(t => {
+            if (result.timetable[t.id]) {
+                localStorage.setItem(getSchoolKey(`timetable_${t.id}`), JSON.stringify(result.timetable[t.id]));
+            }
+        });
+
+        saveToStorage();
+        renderTurmas();
+        renderHorariosGrid();
+
+        if (result.success) {
+            showGenerationMessage(`Grade de horários gerada e salva com 100% de sucesso para todas as ${state.turmas.length} turmas da escola! (Fundamental II com 26 tempos e Ensino Médio com 30 tempos).`, 'success');
+        } else {
+            showGenerationMessage(`Grade gerada parcialmente (${result.allocated} de ${result.total} aulas alocadas) e salva no sistema.`, 'warning');
+        }
+    } else {
+        showGenerationMessage('Não foi possível gerar a grade global. Verifique se os professores possuem disponibilidades cadastradas.', 'danger');
+    }
+}
+
+// GERAÇÃO INDIVIDUAL: TURMA SELECIONADA
 function generateTimetableFlow() {
     if (state.turmas.length === 0 || state.professores.length === 0) {
         showGenerationMessage('Cadastre turmas, disciplinas e professores antes de gerar o horário.', 'danger');
@@ -3333,7 +3398,7 @@ function generateTimetableFlow() {
         });
         
         if (hasSavedLessons) {
-            if (!confirm('Esta turma já possui um horário salvo. Deseja realmente gerar um novo horário e substituir a versão atual? (Observação: Para confirmar a substituição no banco de dados, você precisará clicar em "Salvar Horário" depois)')) {
+            if (!confirm('Esta turma já possui um horário salvo. Deseja realmente gerar um novo horário e substituir a versão atual?')) {
                 return;
             }
         }
@@ -3344,12 +3409,18 @@ function generateTimetableFlow() {
 
     if (result.success && result.timetable && result.timetable[currentTurmaId]) {
         state.timetable[currentTurmaId] = result.timetable[currentTurmaId];
+        localStorage.setItem(getSchoolKey(`timetable_${currentTurmaId}`), JSON.stringify(result.timetable[currentTurmaId]));
+        saveToStorage();
+        renderTurmas();
         renderHorariosGrid();
-        showGenerationMessage('Grade de horários gerada em memória para a turma atual! Lembre-se de clicar em "Salvar Horário".', 'success');
+        showGenerationMessage('Grade de horários gerada e salva com sucesso para a turma atual!', 'success');
     } else if (result.isPartial && result.allocated > 0 && result.timetable && result.timetable[currentTurmaId]) {
         state.timetable[currentTurmaId] = result.timetable[currentTurmaId];
+        localStorage.setItem(getSchoolKey(`timetable_${currentTurmaId}`), JSON.stringify(result.timetable[currentTurmaId]));
+        saveToStorage();
+        renderTurmas();
         renderHorariosGrid();
-        showGenerationMessage(`Grade gerada parcialmente em memória! Alocamos ${result.allocated} de ${result.total} aulas. Ajuste e clique em "Salvar Horário"!`, 'warning');
+        showGenerationMessage(`Grade gerada parcialmente e salva! Alocamos ${result.allocated} de ${result.total} aulas.`, 'warning');
     } else {
         showGenerationMessage('Não foi possível gerar horários de forma automática para esta turma. Verifique se os professores possuem disponibilidades cadastradas ou se há conflitos com outras turmas.', 'danger');
     }
@@ -3463,24 +3534,71 @@ function renderHorariosGrid() {
 
         // Células dos dias letivos
         activeConfig.dias.forEach(dia => {
-            // Verificar se este dia/tempo está desabilitado para a turma deste segmento (ex: 4 dias com 5 tempos)
-            if (viewMode === 'turma' && currentSegment && currentSegment.temposPorDia) {
-                const maxTemposNoDia = currentSegment.temposPorDia[dia] !== undefined ? currentSegment.temposPorDia[dia] : activeConfig.tempos;
-                if (tempo >= maxTemposNoDia) {
-                    const disabledCell = document.createElement('div');
-                    disabledCell.className = 'timetable-cell cell-sem-aula';
-                    disabledCell.style.background = 'rgba(255, 255, 255, 0.02)';
-                    disabledCell.style.border = '1px dashed rgba(255, 255, 255, 0.12)';
-                    disabledCell.style.display = 'flex';
-                    disabledCell.style.flexDirection = 'column';
-                    disabledCell.style.alignItems = 'center';
-                    disabledCell.style.justifyContent = 'center';
-                    disabledCell.style.color = 'var(--text-muted)';
-                    disabledCell.style.fontSize = '0.75rem';
-                    disabledCell.style.cursor = 'not-allowed';
-                    disabledCell.innerHTML = '<i class="fa-solid fa-ban" style="opacity: 0.35; margin-bottom: 3px;"></i><span style="opacity: 0.6; font-weight: 500;">Sem Aula</span>';
-                    root.appendChild(disabledCell);
-                    return;
+            // Verificar se este dia/tempo está desabilitado para a turma deste segmento (ex: 4 dias com 5 tempos no Fundamental 2)
+            if (viewMode === 'turma' && currentTurma) {
+                let totalCarga = 0;
+                if (currentTurma.cargaHoraria) {
+                    totalCarga = Object.values(currentTurma.cargaHoraria).reduce((acc, v) => acc + (parseInt(v, 10) || 0), 0);
+                }
+                const isFund2 = (currentSegment && (currentSegment.id.includes('fund2') || currentSegment.nome.toLowerCase().includes('fundamental'))) || totalCarga === 26;
+
+                if (isFund2) {
+                    // Identificar qual dia tem o 6º tempo nesta turma
+                    let dia6 = null;
+                    if (currentTurma.diaCom6Tempos && currentTurma.diaCom6Tempos !== 'auto') {
+                        dia6 = parseInt(currentTurma.diaCom6Tempos, 10);
+                    } else if (currentTurma.diaCom6TemposEfetivo) {
+                        dia6 = parseInt(currentTurma.diaCom6TemposEfetivo, 10);
+                    } else {
+                        // Buscar na grade salva se algum dia já possui aula no tempo 5
+                        const agendaTurma = state.timetable[currentTurmaId];
+                        if (agendaTurma) {
+                            activeConfig.dias.forEach(d => {
+                                if (agendaTurma[d] && agendaTurma[d][5] !== null) {
+                                    dia6 = d;
+                                }
+                            });
+                        }
+                    }
+
+                    // Se identificado, apenas dia6 tem o tempo 5 ativo; os demais 4 dias são "Sem Aula"
+                    // Se ainda não gerou e dia6 for nulo, usamos o dia 6 (Sexta) como padrão visual
+                    const diaCom6TemposFinal = dia6 !== null ? dia6 : 6;
+                    if (dia !== diaCom6TemposFinal && tempo >= 5) {
+                        const disabledCell = document.createElement('div');
+                        disabledCell.className = 'timetable-cell cell-sem-aula';
+                        disabledCell.style.background = 'rgba(255, 255, 255, 0.02)';
+                        disabledCell.style.border = '1px dashed rgba(255, 255, 255, 0.12)';
+                        disabledCell.style.display = 'flex';
+                        disabledCell.style.flexDirection = 'column';
+                        disabledCell.style.alignItems = 'center';
+                        disabledCell.style.justifyContent = 'center';
+                        disabledCell.style.color = 'var(--text-muted)';
+                        disabledCell.style.fontSize = '0.75rem';
+                        disabledCell.style.cursor = 'not-allowed';
+                        disabledCell.innerHTML = '<i class="fa-solid fa-ban" style="opacity: 0.35; margin-bottom: 3px;"></i><span style="opacity: 0.6; font-weight: 500;">Sem Aula</span>';
+                        root.appendChild(disabledCell);
+                        return;
+                    }
+                } else if (currentSegment && currentSegment.temposPorDia && !isFund2) {
+                    // Ensino Médio ou outros segmentos
+                    const maxTemposNoDia = currentSegment.temposPorDia[dia] !== undefined ? currentSegment.temposPorDia[dia] : activeConfig.tempos;
+                    if (tempo >= maxTemposNoDia) {
+                        const disabledCell = document.createElement('div');
+                        disabledCell.className = 'timetable-cell cell-sem-aula';
+                        disabledCell.style.background = 'rgba(255, 255, 255, 0.02)';
+                        disabledCell.style.border = '1px dashed rgba(255, 255, 255, 0.12)';
+                        disabledCell.style.display = 'flex';
+                        disabledCell.style.flexDirection = 'column';
+                        disabledCell.style.alignItems = 'center';
+                        disabledCell.style.justifyContent = 'center';
+                        disabledCell.style.color = 'var(--text-muted)';
+                        disabledCell.style.fontSize = '0.75rem';
+                        disabledCell.style.cursor = 'not-allowed';
+                        disabledCell.innerHTML = '<i class="fa-solid fa-ban" style="opacity: 0.35; margin-bottom: 3px;"></i><span style="opacity: 0.6; font-weight: 500;">Sem Aula</span>';
+                        root.appendChild(disabledCell);
+                        return;
+                    }
                 }
             }
 
@@ -3842,20 +3960,53 @@ function exportTimetableToExcel() {
         // 1. Planilhas de Turmas
         html += `<div class="section-title">Horários por Turma</div>`;
         state.turmas.forEach(turma => {
-            html += `<h3>Turma: ${turma.nome}</h3>`;
+            const seg = turma.segmentoId ? (activeConfig.segmentos || []).find(s => s.id === turma.segmentoId) : null;
+            const merendaTempo = seg && seg.merendaAposTempo !== undefined ? seg.merendaAposTempo : 3;
+            const merendaHorario = seg && seg.horarioMerenda ? seg.horarioMerenda : '09:40 - 10:10';
+            const temposHorarios = seg && seg.temposHorarios ? seg.temposHorarios : activeConfig.temposHorarios;
+
+            let totalCarga = 0;
+            if (turma.cargaHoraria) {
+                totalCarga = Object.values(turma.cargaHoraria).reduce((acc, v) => acc + (parseInt(v, 10) || 0), 0);
+            }
+            const isFund2 = (seg && (seg.id.includes('fund2') || seg.nome.toLowerCase().includes('fundamental'))) || totalCarga === 26;
+            
+            let dia6 = null;
+            if (isFund2) {
+                if (turma.diaCom6Tempos && turma.diaCom6Tempos !== 'auto') {
+                    dia6 = parseInt(turma.diaCom6Tempos, 10);
+                } else if (turma.diaCom6TemposEfetivo) {
+                    dia6 = parseInt(turma.diaCom6TemposEfetivo, 10);
+                } else {
+                    const agendaTurma = state.timetable[turma.id];
+                    if (agendaTurma) {
+                        activeConfig.dias.forEach(d => {
+                            if (agendaTurma[d] && agendaTurma[d][5] !== null) dia6 = d;
+                        });
+                    }
+                }
+            }
+            const diaCom6Final = dia6 !== null ? dia6 : 6;
+
+            html += `<h3>Turma: ${turma.nome} ${seg ? `(${seg.nome})` : ''}</h3>`;
             html += `<table>`;
             html += `<thead><tr><th>Horário</th><th>Segunda</th><th>Terça</th><th>Quarta</th><th>Quinta</th><th>Sexta</th></tr></thead>`;
             html += `<tbody>`;
 
             for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
-                if (tempo === 3) {
-                    html += `<tr><td class="time-cell">09:40 - 10:10</td><td colspan="5" class="recreio-cell">☕ INTERVALO / RECREIO</td></tr>`;
+                if (tempo === merendaTempo) {
+                    html += `<tr><td class="time-cell">${merendaHorario}</td><td colspan="5" class="recreio-cell">☕ MERENDA / INTERVALO (${merendaHorario})</td></tr>`;
                 }
 
                 html += `<tr>`;
-                html += `<td class="time-cell">${tempo + 1}º Tempo<br>${activeConfig.temposHorarios[tempo]}</td>`;
+                const hStr = (temposHorarios && temposHorarios[tempo]) ? temposHorarios[tempo] : '';
+                html += `<td class="time-cell">${tempo + 1}º Tempo<br>${hStr}</td>`;
 
                 activeConfig.dias.forEach(dia => {
+                    if (isFund2 && dia !== diaCom6Final && tempo >= 5) {
+                        html += `<td style="color: #64748b; font-style: italic;">Sem Aula</td>`;
+                        return;
+                    }
                     const agendaTurma = state.timetable[turma.id];
                     const aula = agendaTurma && agendaTurma[dia] ? agendaTurma[dia][tempo] : null;
                     if (aula) {
