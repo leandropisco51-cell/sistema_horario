@@ -193,6 +193,15 @@ const AuthManager = {
                 bilingueDisc.maxAulasPorDia = 1;
                 localStorage.setItem(`chronos_${joaoSchool.id}_disciplinas`, JSON.stringify(joaoDiscs));
             }
+
+            // Sincronizar disciplinas técnicas existentes para Quarta-feira (dia 4)
+            joaoDiscs.forEach(d => {
+                const n = (d.nome || '').toLowerCase();
+                if (n.includes('técnic') || n.includes('tecnic')) {
+                    d.diaExclusivo = 4;
+                }
+            });
+            localStorage.setItem(`chronos_${joaoSchool.id}_disciplinas`, JSON.stringify(joaoDiscs));
         }
     },
 
@@ -2565,6 +2574,14 @@ function initData() {
             bilingue.tempos = 5;
             bilingue.maxAulasPorDia = 1;
         }
+
+        // Assegurar que disciplinas técnicas do Ensino Médio sejam marcadas com diaExclusivo = 4 (Quarta-feira)
+        state.disciplinas.forEach(d => {
+            const n = (d.nome || '').toLowerCase();
+            if (n.includes('técnic') || n.includes('tecnic')) {
+                d.diaExclusivo = 4;
+            }
+        });
     }
 
     // Verificação preventiva e auto-correção de choques/tempos vagos ao carregar os dados
@@ -2665,12 +2682,26 @@ function updateDashboardStats() {
 const modalDisciplina = document.getElementById('modal-disciplina');
 const formDisciplina = document.getElementById('form-disciplina');
 
+// Auto-detectar disciplinas técnicas no input do nome para sugerir Quarta-feira
+const inputNomeDisciplina = document.getElementById('input-disciplina-nome');
+if (inputNomeDisciplina) {
+    inputNomeDisciplina.addEventListener('input', () => {
+        const val = inputNomeDisciplina.value.toLowerCase();
+        const selDia = document.getElementById('select-disciplina-dia-exclusivo');
+        if (selDia && (val.includes('técnic') || val.includes('tecnic'))) {
+            selDia.value = '4'; // Quarta-feira (Ensino Técnico)
+        }
+    });
+}
+
 document.getElementById('btn-add-disciplina').addEventListener('click', () => {
     document.getElementById('modal-disciplina-title').textContent = 'Adicionar Disciplina';
     formDisciplina.reset();
     document.getElementById('edit-disciplina-id').value = '';
     const selMax = document.getElementById('select-disciplina-max-diario');
     if (selMax) selMax.value = '2';
+    const selDia = document.getElementById('select-disciplina-dia-exclusivo');
+    if (selDia) selDia.value = '';
     modalDisciplina.classList.add('active');
 });
 
@@ -2681,6 +2712,8 @@ formDisciplina.addEventListener('submit', (e) => {
     const tempos = parseInt(document.getElementById('input-disciplina-tempos').value, 10) || 4;
     const selMax = document.getElementById('select-disciplina-max-diario');
     const maxAulasPorDia = selMax ? (parseInt(selMax.value, 10) || 2) : 2;
+    const selDia = document.getElementById('select-disciplina-dia-exclusivo');
+    const diaExclusivo = selDia && selDia.value ? parseInt(selDia.value, 10) : null;
 
     if (id) {
         // Editar
@@ -2689,6 +2722,7 @@ formDisciplina.addEventListener('submit', (e) => {
             disc.nome = nome;
             disc.tempos = tempos;
             disc.maxAulasPorDia = maxAulasPorDia;
+            disc.diaExclusivo = diaExclusivo;
         }
     } else {
         // Novo
@@ -2696,7 +2730,8 @@ formDisciplina.addEventListener('submit', (e) => {
             id: 'd_' + Date.now(),
             nome: nome,
             tempos: tempos,
-            maxAulasPorDia: maxAulasPorDia
+            maxAulasPorDia: maxAulasPorDia,
+            diaExclusivo: diaExclusivo
         });
     }
 
@@ -2721,8 +2756,17 @@ function renderDisciplinas() {
             ? `<span class="badge" style="background-color: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); margin-left: 6px; font-size: 0.72rem;"><i class="fa-solid fa-calendar-day"></i> 1 aula/dia</span>`
             : '';
 
+        const isTecnica = (disc.diaExclusivo === 4 || disc.diaExclusivo === '4') || (disc.nome || '').toLowerCase().includes('técnic') || (disc.nome || '').toLowerCase().includes('tecnic');
+        let badgeDia = '';
+        if (isTecnica) {
+            badgeDia = `<span class="badge" style="background-color: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); margin-left: 6px; font-size: 0.72rem;"><i class="fa-solid fa-microchip"></i> Quarta-feira (Técnico)</span>`;
+        } else if (disc.diaExclusivo) {
+            const nomeDia = activeConfig.diasNomes ? activeConfig.diasNomes[disc.diaExclusivo] : `Dia ${disc.diaExclusivo}`;
+            badgeDia = `<span class="badge badge-info" style="margin-left: 6px; font-size: 0.72rem;"><i class="fa-solid fa-calendar-week"></i> Exclusivo: ${nomeDia}</span>`;
+        }
+
         tr.innerHTML = `
-            <td style="font-weight: 600;">${disc.nome} ${badgeMaxDiario}</td>
+            <td style="font-weight: 600;">${disc.nome} ${badgeMaxDiario} ${badgeDia}</td>
             <td><span class="badge badge-secondary">${disc.tempos || 4} tempos</span></td>
             <td style="width: 120px;">
                 <div class="action-buttons">
@@ -2745,6 +2789,8 @@ window.editDisciplina = function(id) {
     document.getElementById('input-disciplina-tempos').value = disc.tempos || 4;
     const selMax = document.getElementById('select-disciplina-max-diario');
     if (selMax) selMax.value = (disc.maxAulasPorDia !== undefined) ? String(disc.maxAulasPorDia) : '2';
+    const selDia = document.getElementById('select-disciplina-dia-exclusivo');
+    if (selDia) selDia.value = (disc.diaExclusivo !== undefined && disc.diaExclusivo !== null) ? String(disc.diaExclusivo) : '';
     modalDisciplina.classList.add('active');
 };
 
@@ -3696,8 +3742,24 @@ function smartCompactAndResolveTimetable(targetTurmaId = null) {
 
                             const discA = discMap.get(lessonA.disciplinaId);
                             const discB = discMap.get(lessonB.disciplinaId);
-                            const maxA = discA && discA.maxAulasPorDia ? discA.maxAulasPorDia : 2;
-                            const maxB = discB && discB.maxAulasPorDia ? discB.maxAulasPorDia : 2;
+
+                            const getDiscAllowed = (d) => {
+                                if (!d) return activeConfig.dias;
+                                if (d.diaExclusivo) {
+                                    const dd = parseInt(d.diaExclusivo, 10);
+                                    if (activeConfig.dias.includes(dd)) return [dd];
+                                }
+                                const n = (d.nome || '').toLowerCase();
+                                if (n.includes('técnic') || n.includes('tecnic')) return [4];
+                                return activeConfig.dias;
+                            };
+
+                            const allowedA = getDiscAllowed(discA);
+                            const allowedB = getDiscAllowed(discB);
+                            if (!allowedA.includes(otherDia) || !allowedB.includes(dia)) continue;
+
+                            const maxA = allowedA.length === 1 ? 6 : (discA && discA.maxAulasPorDia ? discA.maxAulasPorDia : 2);
+                            const maxB = allowedB.length === 1 ? 6 : (discB && discB.maxAulasPorDia ? discB.maxAulasPorDia : 2);
 
                             const countAInOtherDia = otherDaySlots.filter(s => s && s.disciplinaId === lessonA.disciplinaId).length;
                             const countBInDia = daySlots.filter(s => s && s.disciplinaId === lessonB.disciplinaId).length;
@@ -4229,8 +4291,12 @@ function createLessonCard(disciplinaId, disciplinaNome, professorId, professorNo
         clashBadgeHtml = `<div class="clash-badge" title="Choque com ${clashingTurmas.join(', ')}"><i class="fa-solid fa-triangle-exclamation"></i> Choque: ${clashingTurmas.join(', ')}</div>`;
     }
 
+    const discObj = state.disciplinas.find(d => d.id === disciplinaId);
+    const isTecnicaCard = discObj && ((discObj.diaExclusivo === 4 || discObj.diaExclusivo === '4') || (discObj.nome || '').toLowerCase().includes('técnic') || (discObj.nome || '').toLowerCase().includes('tecnic'));
+    const tecBadgeHtml = isTecnicaCard ? `<span style="font-size: 0.65rem; background: rgba(168, 85, 247, 0.25); color: #c084fc; padding: 1px 5px; border-radius: 4px; margin-left: 4px; font-weight: 600;"><i class="fa-solid fa-microchip"></i> Técnico</span>` : '';
+
     card.innerHTML = `
-        <div class="lesson-subject">${disciplinaNome}</div>
+        <div class="lesson-subject">${disciplinaNome} ${tecBadgeHtml}</div>
         <div class="lesson-teacher" title="${professorNome}"><i class="fa-solid fa-user-tie"></i> ${professorNome}</div>
         ${clashBadgeHtml}
     `;
@@ -4298,6 +4364,43 @@ function moveLesson(dragData, targetTurmaId, targetDia, targetTempo) {
     if (sourceTurmaId !== targetTurmaId) {
         showGenerationMessage('Não é permitido arrastar aulas entre turmas diferentes.', 'danger');
         return;
+    }
+
+    // 1.1 Verificar restrição de dias exclusivos da disciplina (ex: Ensino Técnico na Quarta-feira)
+    const disc = state.disciplinas.find(d => d.id === disciplinaId);
+    if (disc) {
+        let allowedDays = activeConfig.dias;
+        if (disc.diaExclusivo !== undefined && disc.diaExclusivo !== null && disc.diaExclusivo !== '') {
+            const d = parseInt(disc.diaExclusivo, 10);
+            if (activeConfig.dias.includes(d)) allowedDays = [d];
+        } else if ((disc.nome || '').toLowerCase().includes('técnic') || (disc.nome || '').toLowerCase().includes('tecnic')) {
+            allowedDays = [4]; // Quarta-feira
+        }
+        if (!allowedDays.includes(targetDia)) {
+            const diaEsperado = activeConfig.diasNomes ? activeConfig.diasNomes[allowedDays[0]] : `dia ${allowedDays[0]}`;
+            showGenerationMessage(`Regra Pedagógica: A disciplina "${disc.nome}" deve ser ministrada exclusivamente na ${diaEsperado}!`, 'warning');
+            return;
+        }
+    }
+
+    // Se houver uma aula no destino que será trocada com a de origem, verificar suas restrições também
+    const existingSlot = state.timetable[targetTurmaId] && state.timetable[targetTurmaId][targetDia] ? state.timetable[targetTurmaId][targetDia][targetTempo] : null;
+    if (existingSlot) {
+        const existingDisc = state.disciplinas.find(d => d.id === existingSlot.disciplinaId);
+        if (existingDisc) {
+            let allowedDaysEx = activeConfig.dias;
+            if (existingDisc.diaExclusivo !== undefined && existingDisc.diaExclusivo !== null && existingDisc.diaExclusivo !== '') {
+                const d = parseInt(existingDisc.diaExclusivo, 10);
+                if (activeConfig.dias.includes(d)) allowedDaysEx = [d];
+            } else if ((existingDisc.nome || '').toLowerCase().includes('técnic') || (existingDisc.nome || '').toLowerCase().includes('tecnic')) {
+                allowedDaysEx = [4];
+            }
+            if (!allowedDaysEx.includes(fromDia)) {
+                const diaEsperado = activeConfig.diasNomes ? activeConfig.diasNomes[allowedDaysEx[0]] : `dia ${allowedDaysEx[0]}`;
+                showGenerationMessage(`Regra Pedagógica: A disciplina "${existingDisc.nome}" deve ser ministrada exclusivamente na ${diaEsperado}!`, 'warning');
+                return;
+            }
+        }
     }
 
     const professor = state.professores.find(p => p.id === professorId);

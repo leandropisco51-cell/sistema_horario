@@ -86,6 +86,27 @@ class TimetableScheduler {
         return prof && prof.disponibilidade && prof.disponibilidade[dia] && prof.disponibilidade[dia].includes(tempo);
     }
 
+    isTecnica(disc) {
+        if (!disc) return false;
+        if (disc.diaExclusivo === 4 || disc.diaExclusivo === '4') return true;
+        if (disc.tipo === 'tecnica' || disc.isTecnica) return true;
+        const nome = (disc.nome || '').toLowerCase();
+        return nome.includes('técnic') || nome.includes('tecnic');
+    }
+
+    getAllowedDaysForDisciplina(disc, turma) {
+        if (!disc) return this.dias;
+        if (disc.diaExclusivo !== undefined && disc.diaExclusivo !== null && disc.diaExclusivo !== '') {
+            const d = parseInt(disc.diaExclusivo, 10);
+            if (this.dias.includes(d)) return [d];
+        }
+        if (this.isTecnica(disc)) {
+            // No Colégio João de Deus, as matérias do Ensino Técnico são exclusivamente na quarta-feira (dia 4)
+            if (this.dias.includes(4)) return [4];
+        }
+        return this.dias;
+    }
+
     generate(targetTurmaId, existingTimetable) {
         const timetable = {};
         const teacherSchedule = {};
@@ -146,7 +167,7 @@ class TimetableScheduler {
             Object.entries(turma.cargaHoraria || {}).forEach(([discId, countStr]) => {
                 const count = parseInt(countStr, 10) || 0;
                 const disc = this.discMap.get(discId);
-                const isSinglePerDay = disc && (disc.maxAulasPorDia === 1 || disc.id.includes('bilingue')) && count === 5;
+                const isSinglePerDay = disc && (disc.maxAulasPorDia === 1 || disc.id.includes('bilingue')) && count === 5 && this.getAllowedDaysForDisciplina(disc, turma).length > 1;
                 if (isSinglePerDay) {
                     const profs = this.professoresPorDisciplina[discId] || [];
                     if (profs.length > 0) {
@@ -211,6 +232,10 @@ class TimetableScheduler {
                 });
 
                 const remaining = count - alreadyPlaced;
+                const allowedDays = this.getAllowedDaysForDisciplina(disc, turma);
+                const isExclusiveDay = allowedDays.length === 1;
+                const effectiveMaxAulasDia = isExclusiveDay ? Math.max(count, 6) : (disc.maxAulasPorDia || 2);
+
                 for (let i = 0; i < remaining; i++) {
                     turmaLessons.push({
                         turmaId: turma.id,
@@ -218,13 +243,14 @@ class TimetableScheduler {
                         disciplinaId: discId,
                         disc: disc,
                         professoresPossiveis: profs,
-                        maxAulasDia: disc.maxAulasPorDia || 2
+                        allowedDays: allowedDays,
+                        maxAulasDia: effectiveMaxAulasDia
                     });
                 }
             });
 
-            // Agendar primeiro disciplinas mais restritas (menor maxAulasPorDia)
-            turmaLessons.sort((a, b) => a.maxAulasDia - b.maxAulasDia);
+            // Agendar primeiro disciplinas mais restritas (dias exclusivos e menor maxAulasPorDia)
+            turmaLessons.sort((a, b) => (a.allowedDays.length - b.allowedDays.length) || (a.maxAulasDia - b.maxAulasDia));
 
             turmaLessons.forEach(lesson => {
                 let placed = false;
@@ -256,6 +282,7 @@ class TimetableScheduler {
 
                 // 1. Tentar alocação direta em slot vazio priorizando compacidade e geminação
                 for (let dia of sortedDias) {
+                    if (!lesson.allowedDays.includes(dia)) continue;
                     if (this.countAulasDia(timetable, turma.id, dia, lesson.disciplinaId) >= lesson.maxAulasDia) continue;
 
                     const candidateTempos = [];
@@ -295,6 +322,7 @@ class TimetableScheduler {
                 if (!placed) {
                     for (let dia of sortedDias) {
                         if (placed) break;
+                        if (!lesson.allowedDays.includes(dia)) continue;
                         if (this.countAulasDia(timetable, turma.id, dia, lesson.disciplinaId) >= lesson.maxAulasDia) continue;
 
                         for (let t = 0; t < this.tempos; t++) {
@@ -307,9 +335,15 @@ class TimetableScheduler {
                                 const otherTurma = this.turmas.find(x => x.id === otherTurmaId);
                                 if (!otherTurma) continue;
 
+                                const otherLessonSlot = timetable[otherTurmaId][dia][t];
+                                const otherDisc = otherLessonSlot ? this.discMap.get(otherLessonSlot.disciplinaId) : null;
+                                const otherAllowed = this.getAllowedDaysForDisciplina(otherDisc, otherTurma);
+
                                 for (let d2 of this.dias) {
                                     if (placed) break;
-                                    if (d2 !== dia && this.countAulasDia(timetable, otherTurmaId, d2, lesson.disciplinaId) >= lesson.maxAulasDia) continue;
+                                    if (!otherAllowed.includes(d2)) continue;
+                                    const otherMax = otherAllowed.length === 1 ? 6 : (otherDisc ? (otherDisc.maxAulasPorDia || 2) : 2);
+                                    if (d2 !== dia && this.countAulasDia(timetable, otherTurmaId, d2, otherDisc ? otherDisc.id : lesson.disciplinaId) >= otherMax) continue;
 
                                     for (let t2 = 0; t2 < this.tempos; t2++) {
                                         if (this.isSlotDisabledForTurma(otherTurma, d2, t2, timetable)) continue;
@@ -336,6 +370,7 @@ class TimetableScheduler {
                 if (!placed) {
                     for (let dia of sortedDias) {
                         if (placed) break;
+                        if (!lesson.allowedDays.includes(dia)) continue;
                         if (this.countAulasDia(timetable, turma.id, dia, lesson.disciplinaId) >= lesson.maxAulasDia) continue;
 
                         for (let t = 0; t < this.tempos; t++) {
@@ -349,8 +384,14 @@ class TimetableScheduler {
                                 const otherTurma = this.turmas.find(x => x.id === otherTurmaId);
                                 if (!otherTurma) continue;
 
+                                const origSlot = timetable[otherTurmaId][dia][t];
+                                const origDisc = origSlot ? this.discMap.get(origSlot.disciplinaId) : null;
+                                const origAllowed = this.getAllowedDaysForDisciplina(origDisc, otherTurma);
+
                                 for (let d2 of this.dias) {
                                     if (placed) break;
+                                    if (!origAllowed.includes(d2)) continue;
+
                                     for (let t2 = 0; t2 < this.tempos; t2++) {
                                         if (this.isSlotDisabledForTurma(otherTurma, d2, t2, timetable)) continue;
                                         const otherLesson = timetable[otherTurmaId][d2][t2];
@@ -360,7 +401,11 @@ class TimetableScheduler {
                                         const disc2 = this.discMap.get(otherLesson.disciplinaId);
                                         if (!prof2 || !disc2) continue;
 
-                                        const max2 = disc2.maxAulasPorDia || 2;
+                                        const disc2Allowed = this.getAllowedDaysForDisciplina(disc2, otherTurma);
+                                        if (!disc2Allowed.includes(dia)) continue;
+
+                                        const max2 = disc2Allowed.length === 1 ? 6 : (disc2.maxAulasPorDia || 2);
+                                        const maxOrig = origAllowed.length === 1 ? 6 : (origDisc ? (origDisc.maxAulasPorDia || 2) : 2);
 
                                         // Disponibilidade
                                         if (!this.isProfAvailable(prof, d2, t2)) continue;
@@ -372,7 +417,7 @@ class TimetableScheduler {
 
                                         // Limites diários
                                         if (d2 !== dia && this.countAulasDia(timetable, otherTurmaId, dia, otherLesson.disciplinaId) >= max2) continue;
-                                        if (d2 !== dia && this.countAulasDia(timetable, otherTurmaId, d2, lesson.disciplinaId) >= lesson.maxAulasDia) continue;
+                                        if (d2 !== dia && this.countAulasDia(timetable, otherTurmaId, d2, lesson.disciplinaId) >= maxOrig) continue;
 
                                         // Executar troca dentro da outra turma
                                         timetable[otherTurmaId][dia][t] = otherLesson;
@@ -397,6 +442,8 @@ class TimetableScheduler {
                 if (!placed) {
                     for (let d1 of this.dias) {
                         if (placed) break;
+                        if (!lesson.allowedDays.includes(d1)) continue;
+
                         for (let t1 = 0; t1 < this.tempos; t1++) {
                             if (this.isSlotDisabledForTurma(turma, d1, t1, timetable)) continue;
                             const ownSlot = timetable[turma.id][d1][t1];
@@ -409,9 +456,14 @@ class TimetableScheduler {
                             const ownDisc = this.discMap.get(ownSlot.disciplinaId);
                             if (!ownProf || !ownDisc) continue;
 
+                            const ownAllowed = this.getAllowedDaysForDisciplina(ownDisc, turma);
+
                             for (let d2 of this.dias) {
                                 if (placed) break;
-                                if (d2 !== d1 && this.countAulasDia(timetable, turma.id, d2, ownSlot.disciplinaId) >= (ownDisc.maxAulasPorDia || 2)) continue;
+                                if (!ownAllowed.includes(d2)) continue;
+                                const ownMax = ownAllowed.length === 1 ? 6 : (ownDisc.maxAulasPorDia || 2);
+                                if (d2 !== d1 && this.countAulasDia(timetable, turma.id, d2, ownSlot.disciplinaId) >= ownMax) continue;
+
                                 for (let t2 = 0; t2 < this.tempos; t2++) {
                                     if (this.isSlotDisabledForTurma(turma, d2, t2, timetable)) continue;
                                     if (timetable[turma.id][d2][t2] !== null) continue;
@@ -581,8 +633,14 @@ class TimetableScheduler {
 
                                 const disc1 = this.discMap.get(l1.disciplinaId);
                                 const disc2 = this.discMap.get(l2.disciplinaId);
-                                const max1 = disc1.maxAulasPorDia || 2;
-                                const max2 = disc2.maxAulasPorDia || 2;
+                                if (!disc1 || !disc2) continue;
+
+                                const allowed1 = this.getAllowedDaysForDisciplina(disc1, turma);
+                                const allowed2 = this.getAllowedDaysForDisciplina(disc2, turma);
+                                if (!allowed1.includes(d2) || !allowed2.includes(d1)) continue;
+
+                                const max1 = allowed1.length === 1 ? 6 : (disc1.maxAulasPorDia || 2);
+                                const max2 = allowed2.length === 1 ? 6 : (disc2.maxAulasPorDia || 2);
 
                                 if (this.isSlotDisabledForTurma(turma, d1, t2, timetable)) continue;
                                 if (this.isSlotDisabledForTurma(turma, d2, t1, timetable)) continue;
