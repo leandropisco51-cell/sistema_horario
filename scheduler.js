@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Chronos School Timetable - Algoritmo de Geração Inteligente de Horários
  * 
  * Arquitetura de Alto Desempenho:
@@ -164,16 +164,14 @@ class TimetableScheduler {
             });
 
             Object.values(byProf).forEach(items => {
+                const maxBlock = Math.min(items.length, 5);
                 items.forEach((item, tIdx) => {
                     this.dias.forEach((dia, dIdx) => {
-                        // Rotação de tempos para evitar choque: (dIdx + tIdx) % 5
-                        const preferredTempos = [
-                            (dIdx + tIdx) % 5,
-                            (dIdx + tIdx + 1) % 5,
-                            (dIdx + tIdx + 2) % 5,
-                            (dIdx + tIdx + 3) % 5,
-                            (dIdx + tIdx + 4) % 5
-                        ];
+                        // Rotação de tempos em bloco contíguo sem janelas (ex: 0, 1, 2, 3)
+                        const preferredTempos = [];
+                        for (let k = 0; k < maxBlock; k++) {
+                            preferredTempos.push((dIdx + tIdx + k) % maxBlock);
+                        }
                         for (let tempo of preferredTempos) {
                             if (this.isSlotDisabledForTurma(item.turma, dia, tempo, timetable)) continue;
                             if (!this.isProfAvailable(item.prof, dia, tempo)) continue;
@@ -230,7 +228,21 @@ class TimetableScheduler {
 
             turmaLessons.forEach(lesson => {
                 let placed = false;
-                const prof = lesson.professoresPossiveis[0];
+
+                // Balanceamento de carga entre múltiplos professores da mesma matéria
+                const profsSorted = [...lesson.professoresPossiveis].sort((p1, p2) => {
+                    let c1 = 0, c2 = 0;
+                    this.dias.forEach(d => {
+                        for (let t = 0; t < this.tempos; t++) {
+                            if (teacherSchedule[p1.id][d][t] !== null) c1++;
+                            if (teacherSchedule[p2.id][d][t] !== null) c2++;
+                        }
+                    });
+                    return c1 - c2;
+                });
+
+                for (let prof of profsSorted) {
+                    if (placed) break;
 
                 // Balanceamento: ordenar dias pelo menor número de aulas já marcadas nesta turma
                 const sortedDias = [...this.dias].sort((d1, d2) => {
@@ -242,17 +254,37 @@ class TimetableScheduler {
                     return c1 - c2;
                 });
 
-                // 1. Tentar alocação direta em slot vazio
+                // 1. Tentar alocação direta em slot vazio priorizando compacidade e geminação
                 for (let dia of sortedDias) {
                     if (this.countAulasDia(timetable, turma.id, dia, lesson.disciplinaId) >= lesson.maxAulasDia) continue;
+
+                    const candidateTempos = [];
                     for (let t = 0; t < this.tempos; t++) {
                         if (this.isSlotDisabledForTurma(turma, dia, t, timetable)) continue;
                         if (!this.isProfAvailable(prof, dia, t)) continue;
                         if (timetable[turma.id][dia][t] !== null) continue;
                         if (teacherSchedule[prof.id][dia][t] !== null) continue;
 
-                        timetable[turma.id][dia][t] = { disciplinaId: lesson.disciplinaId, professorId: prof.id };
-                        teacherSchedule[prof.id][dia][t] = turma.id;
+                        let score = 0;
+                        // Aulas geminadas da mesma matéria
+                        if (t > 0 && timetable[turma.id][dia][t - 1] && timetable[turma.id][dia][t - 1].disciplinaId === lesson.disciplinaId) score += 20;
+                        if (t < this.tempos - 1 && timetable[turma.id][dia][t + 1] && timetable[turma.id][dia][t + 1].disciplinaId === lesson.disciplinaId) score += 20;
+
+                        // Compacidade da agenda do professor (sem janelas)
+                        if (t > 0 && teacherSchedule[prof.id][dia][t - 1] !== null) score += 15;
+                        if (t < this.tempos - 1 && teacherSchedule[prof.id][dia][t + 1] !== null) score += 15;
+
+                        // Compactação da turma (preenchimento contínuo sem janelas)
+                        if (t === 0 || timetable[turma.id][dia][t - 1] !== null) score += 10;
+
+                        candidateTempos.push({ tempo: t, score });
+                    }
+
+                    candidateTempos.sort((a, b) => b.score - a.score);
+
+                    for (let cand of candidateTempos) {
+                        timetable[turma.id][dia][cand.tempo] = { disciplinaId: lesson.disciplinaId, professorId: prof.id };
+                        teacherSchedule[prof.id][dia][cand.tempo] = turma.id;
                         placed = true;
                         break;
                     }
@@ -398,12 +430,18 @@ class TimetableScheduler {
                         }
                     }
                 }
+                } // fim do for (let prof of profsSorted)
 
                 if (!placed) {
                     unplaced.push(lesson);
                 }
             });
         });
+
+        // ----------------------------------------------------
+        // FASE 3: OTIMIZAÇÃO DE COMPACIDADE E ELIMINAÇÃO DE JANELAS DOCENTES
+        // ----------------------------------------------------
+        this.optimizeCompactsAndGaps(timetable, teacherSchedule);
 
         // Registrar o dia com 6 tempos efetivo de cada turma
         this.turmas.forEach(turma => {
@@ -438,6 +476,162 @@ class TimetableScheduler {
             total: totalExpectedLessons,
             unplacedCount: unplaced.length
         };
+    }
+
+    countTeacherDayGaps(teacherSchedule, profId, dia) {
+        let first = -1, last = -1, count = 0;
+        for (let t = 0; t < this.tempos; t++) {
+            if (teacherSchedule[profId][dia][t] !== null) {
+                if (first === -1) first = t;
+                last = t;
+                count++;
+            }
+        }
+        if (first === -1 || last <= first) return 0;
+        return (last - first + 1) - count;
+    }
+
+    countTotalTeacherGaps(teacherSchedule) {
+        let total = 0;
+        this.professores.forEach(p => {
+            this.dias.forEach(d => {
+                total += this.countTeacherDayGaps(teacherSchedule, p.id, d);
+            });
+        });
+        return total;
+    }
+
+    optimizeCompactsAndGaps(timetable, teacherSchedule) {
+        let improved = true;
+        let iterations = 0;
+        while (improved && iterations < 30) {
+            improved = false;
+            iterations++;
+
+            for (let turma of this.turmas) {
+                for (let dia of this.dias) {
+                    for (let t1 = 0; t1 < this.tempos; t1++) {
+                        const l1 = timetable[turma.id][dia][t1];
+                        if (!l1) continue;
+
+                        for (let t2 = t1 + 1; t2 < this.tempos; t2++) {
+                            const l2 = timetable[turma.id][dia][t2];
+                            if (!l2) continue;
+                            if (l1.professorId === l2.professorId) continue;
+
+                            const p1 = this.profMap.get(l1.professorId);
+                            const p2 = this.profMap.get(l2.professorId);
+                            if (!p1 || !p2) continue;
+
+                            // Disponibilidade de horários
+                            if (!this.isProfAvailable(p1, dia, t2)) continue;
+                            if (teacherSchedule[p1.id][dia][t2] !== null && teacherSchedule[p1.id][dia][t2] !== turma.id) continue;
+
+                            if (!this.isProfAvailable(p2, dia, t1)) continue;
+                            if (teacherSchedule[p2.id][dia][t1] !== null && teacherSchedule[p2.id][dia][t1] !== turma.id) continue;
+
+                            const currentGaps = this.countTeacherDayGaps(teacherSchedule, p1.id, dia) +
+                                                this.countTeacherDayGaps(teacherSchedule, p2.id, dia);
+
+                            // Simular troca intra-dia (limites diários permanecem inalterados por ser no mesmo dia)
+                            teacherSchedule[p1.id][dia][t1] = null;
+                            teacherSchedule[p2.id][dia][t2] = null;
+                            teacherSchedule[p1.id][dia][t2] = turma.id;
+                            teacherSchedule[p2.id][dia][t1] = turma.id;
+
+                            const newGaps = this.countTeacherDayGaps(teacherSchedule, p1.id, dia) +
+                                            this.countTeacherDayGaps(teacherSchedule, p2.id, dia);
+
+                            if (newGaps < currentGaps) {
+                                timetable[turma.id][dia][t1] = l2;
+                                timetable[turma.id][dia][t2] = l1;
+                                improved = true;
+                                break;
+                            } else {
+                                // Reverter
+                                teacherSchedule[p1.id][dia][t2] = null;
+                                teacherSchedule[p2.id][dia][t1] = null;
+                                teacherSchedule[p1.id][dia][t1] = turma.id;
+                                teacherSchedule[p2.id][dia][t2] = turma.id;
+                            }
+                        }
+                        if (improved) break;
+                    }
+                    if (improved) break;
+                }
+            }
+
+            // Pass B: Trocas entre dias diferentes da mesma turma para diminuir janelas
+            for (let turma of this.turmas) {
+                for (let d1 of this.dias) {
+                    for (let t1 = 0; t1 < this.tempos; t1++) {
+                        const l1 = timetable[turma.id][d1][t1];
+                        if (!l1) continue;
+
+                        for (let d2 of this.dias) {
+                            if (d2 <= d1) continue;
+                            for (let t2 = 0; t2 < this.tempos; t2++) {
+                                const l2 = timetable[turma.id][d2][t2];
+                                if (!l2) continue;
+                                if (l1.disciplinaId === l2.disciplinaId) continue;
+
+                                const p1 = this.profMap.get(l1.professorId);
+                                const p2 = this.profMap.get(l2.professorId);
+                                if (!p1 || !p2) continue;
+
+                                const disc1 = this.discMap.get(l1.disciplinaId);
+                                const disc2 = this.discMap.get(l2.disciplinaId);
+                                const max1 = disc1.maxAulasPorDia || 2;
+                                const max2 = disc2.maxAulasPorDia || 2;
+
+                                if (this.isSlotDisabledForTurma(turma, d1, t2, timetable)) continue;
+                                if (this.isSlotDisabledForTurma(turma, d2, t1, timetable)) continue;
+
+                                if (!this.isProfAvailable(p1, d2, t2)) continue;
+                                if (teacherSchedule[p1.id][d2][t2] !== null && teacherSchedule[p1.id][d2][t2] !== turma.id) continue;
+
+                                if (!this.isProfAvailable(p2, d1, t1)) continue;
+                                if (teacherSchedule[p2.id][d1][t1] !== null && teacherSchedule[p2.id][d1][t1] !== turma.id) continue;
+
+                                // Limites diários: l1 vai para d2, l2 vai para d1
+                                if (this.countAulasDia(timetable, turma.id, d2, l1.disciplinaId) >= max1) continue;
+                                if (this.countAulasDia(timetable, turma.id, d1, l2.disciplinaId) >= max2) continue;
+
+                                const currentGaps = this.countTeacherDayGaps(teacherSchedule, p1.id, d1) +
+                                                    this.countTeacherDayGaps(teacherSchedule, p1.id, d2) +
+                                                    this.countTeacherDayGaps(teacherSchedule, p2.id, d1) +
+                                                    this.countTeacherDayGaps(teacherSchedule, p2.id, d2);
+
+                                teacherSchedule[p1.id][d1][t1] = null;
+                                teacherSchedule[p2.id][d2][t2] = null;
+                                teacherSchedule[p1.id][d2][t2] = turma.id;
+                                teacherSchedule[p2.id][d1][t1] = turma.id;
+
+                                const newGaps = this.countTeacherDayGaps(teacherSchedule, p1.id, d1) +
+                                                this.countTeacherDayGaps(teacherSchedule, p1.id, d2) +
+                                                this.countTeacherDayGaps(teacherSchedule, p2.id, d1) +
+                                                this.countTeacherDayGaps(teacherSchedule, p2.id, d2);
+
+                                if (newGaps < currentGaps) {
+                                    timetable[turma.id][d1][t1] = l2;
+                                    timetable[turma.id][d2][t2] = l1;
+                                    improved = true;
+                                    break;
+                                } else {
+                                    teacherSchedule[p1.id][d2][t2] = null;
+                                    teacherSchedule[p2.id][d1][t1] = null;
+                                    teacherSchedule[p1.id][d1][t1] = turma.id;
+                                    teacherSchedule[p2.id][d2][t2] = turma.id;
+                                }
+                            }
+                            if (improved) break;
+                        }
+                        if (improved) break;
+                    }
+                    if (improved) break;
+                }
+            }
+        }
     }
 }
 
