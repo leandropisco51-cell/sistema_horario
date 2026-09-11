@@ -3408,15 +3408,23 @@ function generateTimetableFlow() {
     const result = scheduler.generate(currentTurmaId, state.timetable);
 
     if (result.success && result.timetable && result.timetable[currentTurmaId]) {
-        state.timetable[currentTurmaId] = result.timetable[currentTurmaId];
-        localStorage.setItem(getSchoolKey(`timetable_${currentTurmaId}`), JSON.stringify(result.timetable[currentTurmaId]));
+        state.timetable = result.timetable;
+        state.turmas.forEach(t => {
+            if (result.timetable[t.id]) {
+                localStorage.setItem(getSchoolKey(`timetable_${t.id}`), JSON.stringify(result.timetable[t.id]));
+            }
+        });
         saveToStorage();
         renderTurmas();
         renderHorariosGrid();
         showGenerationMessage('Grade de horários gerada e salva com sucesso para a turma atual!', 'success');
     } else if (result.isPartial && result.allocated > 0 && result.timetable && result.timetable[currentTurmaId]) {
-        state.timetable[currentTurmaId] = result.timetable[currentTurmaId];
-        localStorage.setItem(getSchoolKey(`timetable_${currentTurmaId}`), JSON.stringify(result.timetable[currentTurmaId]));
+        state.timetable = result.timetable;
+        state.turmas.forEach(t => {
+            if (result.timetable[t.id]) {
+                localStorage.setItem(getSchoolKey(`timetable_${t.id}`), JSON.stringify(result.timetable[t.id]));
+            }
+        });
         saveToStorage();
         renderTurmas();
         renderHorariosGrid();
