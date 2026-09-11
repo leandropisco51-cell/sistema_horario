@@ -11,7 +11,7 @@
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css?v=1.6">
+    <link rel="stylesheet" href="style.css?v=1.9">
     <!-- SheetJS for Excel Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -417,6 +417,20 @@
                         <!-- Alertas de sucesso/falha de geração -->
                     </div>
 
+                    <!-- Banner Auditor de Choques de Horário -->
+                    <div id="clash-alert-banner" class="info-alert danger d-none" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.1);">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.4rem; color: #ef4444;"></i>
+                            <div>
+                                <strong id="clash-alert-title" style="color: #ef4444; font-size: 0.95rem;">Choques de Horário Detectados!</strong>
+                                <div id="clash-alert-subtitle" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Docentes alocados em mais de uma turma no mesmo horário.</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm" id="btn-fix-all-clashes" style="background: #ef4444; color: white; border: none; font-weight: 700; padding: 7px 14px; border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35); cursor: pointer;">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Corrigir Choques e Tempos Vagos
+                        </button>
+                    </div>
+
                     <!-- Timetable Grid -->
                     <div class="timetable-outer-container card">
                         <div class="timetable-grid" id="timetable-grid-root">
@@ -820,7 +834,7 @@
     </div>
 
     <!-- JS Files -->
-    <script src="scheduler.js?v=1.8"></script>
-    <script src="app.js?v=1.8"></script>
+    <script src="scheduler.js?v=1.9"></script>
+    <script src="app.js?v=1.9"></script>
 </body>
 </html>

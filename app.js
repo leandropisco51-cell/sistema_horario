@@ -1,4 +1,78 @@
 // ----------------------------------------------------
+// SYSTEM CONFIGURATIONS
+// ----------------------------------------------------
+
+const DEFAULT_CONFIG = {
+    dias: [2, 3, 4, 5, 6],
+    diasNomes: { 2: 'Segunda', 3: 'Terça', 4: 'Quarta', 5: 'Quinta', 6: 'Sexta', 7: 'Sábado' },
+    tempos: 8,
+    temposHorarios: ["07:10 - 08:00", "08:00 - 08:50", "08:50 - 09:40", "10:10 - 11:00", "11:00 - 11:50", "11:50 - 12:40", "12:40 - 13:30", "13:30 - 14:20"],
+    segmentos: [
+        { id: "seg_default_1", nome: "Ensino Médio", turno: "Matutino" },
+        { id: "seg_default_2", nome: "Ensino Fundamental II", turno: "Vespertino" }
+    ]
+};
+
+const JOAO_DE_DEUS_CONFIG = {
+    dias: [2, 3, 4, 5, 6],
+    diasNomes: { 2: 'Segunda', 3: 'Terça', 4: 'Quarta', 5: 'Quinta', 6: 'Sexta', 7: 'Sábado' },
+    tempos: 6,
+    temposHorarios: ["07:15 - 08:05", "08:05 - 08:55", "08:55 - 09:45", "09:45 - 10:35", "10:55 - 11:45", "11:45 - 12:35"],
+    segmentos: [
+        {
+            id: "seg_fund2_6_7",
+            nome: "Fundamental 2 (6º e 7º Ano)",
+            turno: "Matutino",
+            merendaAposTempo: 2, // Após o 2º tempo (08:55 às 09:15)
+            horarioMerenda: "08:55 às 09:15",
+            temposPorDia: { 2: 5, 3: 5, 4: 5, 5: 5, 6: 6 }, // 4 dias com 5 tempos, Sexta com 6 tempos
+            temposHorarios: [
+                "07:15 - 08:05",
+                "08:05 - 08:55",
+                "09:15 - 10:05",
+                "10:05 - 10:55",
+                "10:55 - 11:45",
+                "11:45 - 12:35"
+            ]
+        },
+        {
+            id: "seg_fund2_8_9",
+            nome: "Fundamental 2 (8º e 9º Ano)",
+            turno: "Matutino",
+            merendaAposTempo: 3, // Após o 3º tempo (09:45 às 10:05)
+            horarioMerenda: "09:45 às 10:05",
+            temposPorDia: { 2: 5, 3: 5, 4: 5, 5: 5, 6: 6 }, // 4 dias com 5 tempos, Sexta com 6 tempos
+            temposHorarios: [
+                "07:15 - 08:05",
+                "08:05 - 08:55",
+                "08:55 - 09:45",
+                "10:05 - 10:55",
+                "10:55 - 11:45",
+                "11:45 - 12:35"
+            ]
+        },
+        {
+            id: "seg_medio",
+            nome: "Ensino Médio",
+            turno: "Matutino",
+            merendaAposTempo: 4, // Após o 4º tempo (10:35 às 10:55)
+            horarioMerenda: "10:35 às 10:55",
+            temposPorDia: { 2: 6, 3: 6, 4: 6, 5: 6, 6: 6 }, // 6 tempos todos os dias
+            temposHorarios: [
+                "07:15 - 08:05",
+                "08:05 - 08:55",
+                "08:55 - 09:45",
+                "09:45 - 10:35",
+                "10:55 - 11:45",
+                "11:45 - 12:35"
+            ]
+        }
+    ]
+};
+
+let activeConfig = DEFAULT_CONFIG;
+
+// ----------------------------------------------------
 // MULTI-TENANT AUTHENTICATION & SESSION MANAGEMENT
 // ----------------------------------------------------
 
@@ -305,76 +379,6 @@ const STORAGE_KEYS = {
     TURMAS: 'chronos_turmas',
     TIMETABLE: 'chronos_timetable'
 };
-
-const DEFAULT_CONFIG = {
-    dias: [2, 3, 4, 5, 6],
-    diasNomes: { 2: 'Segunda', 3: 'Terça', 4: 'Quarta', 5: 'Quinta', 6: 'Sexta', 7: 'Sábado' },
-    tempos: 8,
-    temposHorarios: ["07:10 - 08:00", "08:00 - 08:50", "08:50 - 09:40", "10:10 - 11:00", "11:00 - 11:50", "11:50 - 12:40", "12:40 - 13:30", "13:30 - 14:20"],
-    segmentos: [
-        { id: "seg_default_1", nome: "Ensino Médio", turno: "Matutino" },
-        { id: "seg_default_2", nome: "Ensino Fundamental II", turno: "Vespertino" }
-    ]
-};
-
-const JOAO_DE_DEUS_CONFIG = {
-    dias: [2, 3, 4, 5, 6],
-    diasNomes: { 2: 'Segunda', 3: 'Terça', 4: 'Quarta', 5: 'Quinta', 6: 'Sexta', 7: 'Sábado' },
-    tempos: 6,
-    temposHorarios: ["07:15 - 08:05", "08:05 - 08:55", "08:55 - 09:45", "09:45 - 10:35", "10:55 - 11:45", "11:45 - 12:35"],
-    segmentos: [
-        {
-            id: "seg_fund2_6_7",
-            nome: "Fundamental 2 (6º e 7º Ano)",
-            turno: "Matutino",
-            merendaAposTempo: 2, // Após o 2º tempo (08:55 às 09:15)
-            horarioMerenda: "08:55 às 09:15",
-            temposPorDia: { 2: 5, 3: 5, 4: 5, 5: 5, 6: 6 }, // 4 dias com 5 tempos, Sexta com 6 tempos
-            temposHorarios: [
-                "07:15 - 08:05",
-                "08:05 - 08:55",
-                "09:15 - 10:05",
-                "10:05 - 10:55",
-                "10:55 - 11:45",
-                "11:45 - 12:35"
-            ]
-        },
-        {
-            id: "seg_fund2_8_9",
-            nome: "Fundamental 2 (8º e 9º Ano)",
-            turno: "Matutino",
-            merendaAposTempo: 3, // Após o 3º tempo (09:45 às 10:05)
-            horarioMerenda: "09:45 às 10:05",
-            temposPorDia: { 2: 5, 3: 5, 4: 5, 5: 5, 6: 6 }, // 4 dias com 5 tempos, Sexta com 6 tempos
-            temposHorarios: [
-                "07:15 - 08:05",
-                "08:05 - 08:55",
-                "08:55 - 09:45",
-                "10:05 - 10:55",
-                "10:55 - 11:45",
-                "11:45 - 12:35"
-            ]
-        },
-        {
-            id: "seg_medio",
-            nome: "Ensino Médio",
-            turno: "Matutino",
-            merendaAposTempo: 4, // Após o 4º tempo (10:35 às 10:55)
-            horarioMerenda: "10:35 às 10:55",
-            temposPorDia: { 2: 6, 3: 6, 4: 6, 5: 6, 6: 6 }, // 6 tempos todos os dias
-            temposHorarios: [
-                "07:15 - 08:05",
-                "08:05 - 08:55",
-                "08:55 - 09:45",
-                "09:45 - 10:35",
-                "10:55 - 11:45",
-                "11:45 - 12:35"
-            ]
-        }
-    ]
-};
-
-let activeConfig = DEFAULT_CONFIG;
 
 // Mock Data para iniciar com uma demonstração premium
 const MOCK_DISCIPLINAS = [
@@ -2563,6 +2567,15 @@ function initData() {
         }
     }
 
+    // Verificação preventiva e auto-correção de choques/tempos vagos ao carregar os dados
+    if (state.turmas && state.turmas.length > 0 && Object.keys(state.timetable).length > 0) {
+        const initialClashes = detectAllClashes();
+        const initialGaps = countTurmaGaps();
+        if (initialClashes.length > 0 || initialGaps > 0) {
+            smartCompactAndResolveTimetable(null);
+        }
+    }
+
     saveToStorage();
 }
 
@@ -3237,7 +3250,530 @@ document.getElementById('btn-save-current-timetable').addEventListener('click', 
     showGenerationMessage('Horário da turma atual salvo com sucesso!', 'success');
 });
 
-// Retirar Tempos Vagos da Turma Atual (Compactar com validação de choques e disponibilidade)
+// ====================================================
+// AUDITORIA E RESOLUÇÃO COORDENADA DE CHOQUES & TEMPOS VAGOS
+// ====================================================
+
+// 1. Detectar choques de horário em todas as turmas
+function detectAllClashes(timetableMap = state.timetable, turmasList = state.turmas, profsList = state.professores) {
+    const clashes = [];
+    const profMap = new Map(profsList.map(p => [p.id, p]));
+    activeConfig.dias.forEach(dia => {
+        for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
+            const profOccupancy = {};
+            turmasList.forEach(turma => {
+                const agenda = timetableMap[turma.id];
+                const slot = agenda && agenda[dia] ? agenda[dia][tempo] : null;
+                if (slot && slot.professorId) {
+                    if (!profOccupancy[slot.professorId]) profOccupancy[slot.professorId] = [];
+                    const disc = state.disciplinas.find(d => d.id === slot.disciplinaId);
+                    profOccupancy[slot.professorId].push({
+                        turmaId: turma.id,
+                        turmaNome: turma.nome,
+                        disciplinaId: slot.disciplinaId,
+                        disciplinaNome: disc ? disc.nome : 'Disciplina',
+                        slot
+                    });
+                }
+            });
+            Object.entries(profOccupancy).forEach(([profId, list]) => {
+                if (list.length > 1) {
+                    const prof = profMap.get(profId);
+                    clashes.push({
+                        dia,
+                        tempo,
+                        professorId: profId,
+                        professorNome: prof ? prof.nome : 'Professor',
+                        turmas: list
+                    });
+                }
+            });
+        }
+    });
+    return clashes;
+}
+
+// 2. Contar tempos vagos (gaps) dentro da jornada de cada turma
+function countTurmaGaps(timetableMap = state.timetable, turmasList = state.turmas) {
+    let gaps = 0;
+    turmasList.forEach(turma => {
+        activeConfig.dias.forEach(dia => {
+            const daySlots = timetableMap[turma.id] ? timetableMap[turma.id][dia] : null;
+            if (!daySlots) return;
+            let lastLesson = -1;
+            for (let t = 0; t < activeConfig.tempos; t++) {
+                if (daySlots[t] !== null) lastLesson = t;
+            }
+            if (lastLesson > 0) {
+                for (let t = 0; t < lastLesson; t++) {
+                    if (daySlots[t] === null) gaps++;
+                }
+            }
+        });
+    });
+    return gaps;
+}
+
+// 3. Auditoria visual: ativa/desativa o banner de choques
+function auditAndHighlightClashes() {
+    const banner = document.getElementById('clash-alert-banner');
+    if (!banner) return;
+
+    const clashes = detectAllClashes();
+    if (clashes.length > 0) {
+        banner.classList.remove('d-none');
+        const titleEl = document.getElementById('clash-alert-title');
+        const subEl = document.getElementById('clash-alert-subtitle');
+        if (titleEl) {
+            titleEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Atenção: ${clashes.length} Choque(s) de Horário Detectado(s)!`;
+        }
+        if (subEl) {
+            const details = clashes.slice(0, 3).map(c => 
+                `<strong>${c.professorNome}</strong> (${activeConfig.diasNomes[c.dia]} ${c.tempo + 1}ºT: ${c.turmas.map(t => t.turmaNome).join(' e ')})`
+            ).join('; ');
+            const moreText = clashes.length > 3 ? ` (+${clashes.length - 3} outros)` : '';
+            subEl.innerHTML = `Conflitos ativos: ${details}${moreText}. Clique ao lado para corrigir automaticamente.`;
+        }
+    } else {
+        banner.classList.add('d-none');
+    }
+}
+
+// 4. Motor Coordenado de Compactação e Resolução de Choques
+function smartCompactAndResolveTimetable(targetTurmaId = null) {
+    const profMap = new Map(state.professores.map(p => [p.id, p]));
+    const discMap = new Map(state.disciplinas.map(d => [d.id, d]));
+    const affectedTurmas = new Set();
+    let totalGapsClosed = 0;
+    let totalClashesResolved = 0;
+
+    function isProfAvailable(pId, dia, tempo) {
+        const prof = profMap.get(pId);
+        if (!prof) return false;
+        if (prof.disponibilidade && prof.disponibilidade[dia]) {
+            return prof.disponibilidade[dia].includes(tempo);
+        }
+        return true;
+    }
+
+    function isProfFreeInOtherTurmas(pId, dia, tempo, excludeTurmaId) {
+        for (let otherT of state.turmas) {
+            if (otherT.id === excludeTurmaId) continue;
+            const slot = state.timetable[otherT.id] && state.timetable[otherT.id][dia] ? state.timetable[otherT.id][dia][tempo] : null;
+            if (slot && slot.professorId === pId) return false;
+        }
+        return true;
+    }
+
+    function isSlotDisabled(turma, dia, tempo) {
+        if (!turma) return false;
+        let totalCarga = 0;
+        if (turma.cargaHoraria) {
+            totalCarga = Object.values(turma.cargaHoraria).reduce((acc, v) => acc + (parseInt(v, 10) || 0), 0);
+        }
+        const seg = turma.segmentoId ? (activeConfig.segmentos || []).find(s => s.id === turma.segmentoId) : null;
+        const isFund2 = (seg && (seg.id.includes('fund2') || seg.nome.toLowerCase().includes('fundamental'))) || totalCarga === 26;
+
+        if (isFund2) {
+            if (turma.diaCom6Tempos && turma.diaCom6Tempos !== 'auto') {
+                const dia6 = parseInt(turma.diaCom6Tempos, 10);
+                return dia === dia6 ? tempo >= 6 : tempo >= 5;
+            }
+            if (turma.diaCom6TemposEfetivo) {
+                const dia6 = parseInt(turma.diaCom6TemposEfetivo, 10);
+                return dia === dia6 ? tempo >= 6 : tempo >= 5;
+            }
+            if (tempo >= 6) return true;
+            // Se não fixou dia6, buscar na grade existente
+            const agenda = state.timetable[turma.id];
+            let dia6 = 6;
+            if (agenda) {
+                activeConfig.dias.forEach(d => {
+                    if (agenda[d] && agenda[d][5] !== null) dia6 = d;
+                });
+            }
+            return dia === dia6 ? tempo >= 6 : tempo >= 5;
+        }
+
+        if (seg && seg.temposPorDia && !isFund2) {
+            const maxTemposNoDia = seg.temposPorDia[dia] !== undefined ? seg.temposPorDia[dia] : activeConfig.tempos;
+            return tempo >= maxTemposNoDia;
+        }
+
+        return tempo >= activeConfig.tempos;
+    }
+
+    // FASE 1: RESOLUÇÃO DIRETA DE CHOQUES PRÉ-EXISTENTES
+    let clashPasses = 0;
+    while (clashPasses < 30) {
+        clashPasses++;
+        const currentClashes = detectAllClashes();
+        if (currentClashes.length === 0) break;
+
+        let passChanged = false;
+        for (let clash of currentClashes) {
+            const { dia, tempo, professorId, turmas: clashTurmas } = clash;
+
+            for (let i = 1; i < clashTurmas.length; i++) {
+                const confTurma = state.turmas.find(t => t.id === clashTurmas[i].turmaId);
+                if (!confTurma) continue;
+
+                const daySlots = state.timetable[confTurma.id][dia];
+                if (!daySlots) continue;
+                const lessonToMove = daySlots[tempo];
+                if (!lessonToMove) continue;
+
+                let resolved = false;
+
+                // Opção 1A: Mover para um tempo vazio da mesma turma onde o prof está livre
+                for (let t2 = 0; t2 < activeConfig.tempos; t2++) {
+                    if (t2 === tempo || isSlotDisabled(confTurma, dia, t2)) continue;
+                    if (daySlots[t2] === null && isProfAvailable(professorId, dia, t2) && isProfFreeInOtherTurmas(professorId, dia, t2, confTurma.id)) {
+                        daySlots[t2] = lessonToMove;
+                        daySlots[tempo] = null;
+                        affectedTurmas.add(confTurma.id);
+                        totalClashesResolved++;
+                        passChanged = true;
+                        resolved = true;
+                        break;
+                    }
+                }
+                if (resolved) break;
+
+                // Opção 1B: Troca intra-dia na mesma turma com outra aula
+                for (let t2 = 0; t2 < activeConfig.tempos; t2++) {
+                    if (t2 === tempo || isSlotDisabled(confTurma, dia, t2)) continue;
+                    const otherLesson = daySlots[t2];
+                    if (otherLesson && otherLesson.professorId !== professorId) {
+                        if (isProfAvailable(otherLesson.professorId, dia, tempo) &&
+                            isProfFreeInOtherTurmas(otherLesson.professorId, dia, tempo, confTurma.id) &&
+                            isProfAvailable(professorId, dia, t2) &&
+                            isProfFreeInOtherTurmas(professorId, dia, t2, confTurma.id)) {
+                            
+                            daySlots[tempo] = otherLesson;
+                            daySlots[t2] = lessonToMove;
+                            affectedTurmas.add(confTurma.id);
+                            totalClashesResolved++;
+                            passChanged = true;
+                            resolved = true;
+                            break;
+                        }
+                    }
+                }
+                if (resolved) break;
+            }
+            if (passChanged) break;
+        }
+        if (!passChanged) break;
+    }
+
+    // FASE 2: COMPACTAÇÃO COORDENADA COM AJUSTE DE OUTRAS TURMAS
+    const orderedTurmas = targetTurmaId 
+        ? [state.turmas.find(t => t.id === targetTurmaId), ...state.turmas.filter(t => t.id !== targetTurmaId)].filter(Boolean)
+        : state.turmas;
+
+    let compactPasses = 0;
+    let compactChanged = true;
+
+    while (compactChanged && compactPasses < 35) {
+        compactChanged = false;
+        compactPasses++;
+
+        for (let turma of orderedTurmas) {
+            for (let dia of activeConfig.dias) {
+                const daySlots = state.timetable[turma.id] ? state.timetable[turma.id][dia] : null;
+                if (!daySlots) continue;
+
+                for (let emptyTempo = 0; emptyTempo < activeConfig.tempos; emptyTempo++) {
+                    if (isSlotDisabled(turma, dia, emptyTempo)) continue;
+
+                    if (daySlots[emptyTempo] === null) {
+                        for (let nextTempo = emptyTempo + 1; nextTempo < activeConfig.tempos; nextTempo++) {
+                            const lesson = daySlots[nextTempo];
+                            if (!lesson) continue;
+
+                            const prof = profMap.get(lesson.professorId);
+                            if (!prof) continue;
+
+                            if (!isProfAvailable(prof.id, dia, emptyTempo)) continue;
+
+                            // Verificar turmas com choque neste tempo
+                            const conflictingTurmas = [];
+                            state.turmas.forEach(otherT => {
+                                if (otherT.id === turma.id) return;
+                                const otherSlot = state.timetable[otherT.id] && state.timetable[otherT.id][dia] ? state.timetable[otherT.id][dia][emptyTempo] : null;
+                                if (otherSlot && otherSlot.professorId === prof.id) {
+                                    conflictingTurmas.push(otherT);
+                                }
+                            });
+
+                            // Caso 1: Sem choque -> Mover direto!
+                            if (conflictingTurmas.length === 0) {
+                                daySlots[emptyTempo] = lesson;
+                                daySlots[nextTempo] = null;
+                                affectedTurmas.add(turma.id);
+                                totalGapsClosed++;
+                                compactChanged = true;
+                                break;
+                            }
+
+                            // Caso 2: Com choque -> Ajustar a outra turma coordenadamente!
+                            let resolvedOther = false;
+                            for (let otherTurma of conflictingTurmas) {
+                                const otherDaySlots = state.timetable[otherTurma.id][dia];
+                                if (!otherDaySlots) continue;
+
+                                // Opção 2A: Outra turma tem nextTempo livre (e nextTempo não é desabilitado)
+                                if (otherDaySlots[nextTempo] === null && !isSlotDisabled(otherTurma, dia, nextTempo) && isProfAvailable(prof.id, dia, nextTempo)) {
+                                    otherDaySlots[nextTempo] = otherDaySlots[emptyTempo];
+                                    otherDaySlots[emptyTempo] = null;
+
+                                    daySlots[emptyTempo] = lesson;
+                                    daySlots[nextTempo] = null;
+
+                                    affectedTurmas.add(turma.id);
+                                    affectedTurmas.add(otherTurma.id);
+                                    totalGapsClosed++;
+                                    compactChanged = true;
+                                    resolvedOther = true;
+                                    break;
+                                }
+
+                                // Opção 2B: Outra turma pode trocar intra-dia com outro docente
+                                for (let t2 = 0; t2 < activeConfig.tempos; t2++) {
+                                    if (t2 === emptyTempo || isSlotDisabled(otherTurma, dia, t2)) continue;
+                                    const otherLesson2 = otherDaySlots[t2];
+                                    if (otherLesson2 && otherLesson2.professorId !== prof.id) {
+                                        const prof2 = profMap.get(otherLesson2.professorId);
+                                        if (prof2 && isProfAvailable(prof2.id, dia, emptyTempo) &&
+                                            isProfFreeInOtherTurmas(prof2.id, dia, emptyTempo, otherTurma.id) &&
+                                            isProfAvailable(prof.id, dia, t2) &&
+                                            isProfFreeInOtherTurmas(prof.id, dia, t2, otherTurma.id)) {
+                                            
+                                            otherDaySlots[emptyTempo] = otherLesson2;
+                                            otherDaySlots[t2] = { disciplinaId: otherDaySlots[emptyTempo].disciplinaId, professorId: prof.id };
+
+                                            daySlots[emptyTempo] = lesson;
+                                            daySlots[nextTempo] = null;
+
+                                            affectedTurmas.add(turma.id);
+                                            affectedTurmas.add(otherTurma.id);
+                                            totalGapsClosed++;
+                                            compactChanged = true;
+                                            resolvedOther = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (resolvedOther) break;
+
+                                // Opção 2C: Adiantar outra aula posterior da turma atual
+                                for (let altTempo = nextTempo + 1; altTempo < activeConfig.tempos; altTempo++) {
+                                    const altLesson = daySlots[altTempo];
+                                    if (altLesson && isProfAvailable(altLesson.professorId, dia, emptyTempo) &&
+                                        isProfFreeInOtherTurmas(altLesson.professorId, dia, emptyTempo, turma.id)) {
+                                        
+                                        daySlots[emptyTempo] = altLesson;
+                                        daySlots[altTempo] = null;
+
+                                        affectedTurmas.add(turma.id);
+                                        totalGapsClosed++;
+                                        compactChanged = true;
+                                        resolvedOther = true;
+                                        break;
+                                    }
+                                }
+                                if (resolvedOther) break;
+                            }
+
+                            if (resolvedOther) break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // FASE 3: COMPACTAÇÃO DE CONTIGUIDADE ESTRITA (Zero Janelas Garantido)
+    activeConfig.dias.forEach(dia => {
+        orderedTurmas.forEach(turma => {
+            const daySlots = state.timetable[turma.id] ? state.timetable[turma.id][dia] : null;
+            if (!daySlots) return;
+
+            const lessons = daySlots.filter(s => s !== null);
+            const k = lessons.length;
+            
+            let hasInternalGap = false;
+            for (let t = 0; t < k; t++) {
+                if (daySlots[t] === null) hasInternalGap = true;
+            }
+
+            if (hasInternalGap) {
+                for (let t = 0; t < activeConfig.tempos; t++) {
+                    if (t < k && !isSlotDisabled(turma, dia, t)) {
+                        daySlots[t] = lessons[t];
+                    } else {
+                        daySlots[t] = null;
+                    }
+                }
+                affectedTurmas.add(turma.id);
+                totalGapsClosed++;
+            }
+        });
+    });
+
+    // Revalidar se a contiguidade estrita gerou algum choque e resolvê-lo mantendo contiguidade
+    let postClashes = detectAllClashes();
+    let postPasses = 0;
+    while (postClashes.length > 0 && postPasses < 40) {
+        postPasses++;
+        let improved = false;
+        for (let clash of postClashes) {
+            const { dia, tempo, professorId, turmas: clashTurmas } = clash;
+            for (let item of clashTurmas) {
+                const turma = state.turmas.find(t => t.id === item.turmaId);
+                if (!turma) continue;
+                const daySlots = state.timetable[turma.id][dia];
+                const k = daySlots.filter(s => s !== null).length;
+
+                for (let t2 = 0; t2 < k; t2++) {
+                    if (t2 === tempo || isSlotDisabled(turma, dia, t2)) continue;
+                    const lA = daySlots[tempo];
+                    const lB = daySlots[t2];
+                    if (!isProfAvailable(lA.professorId, dia, t2)) continue;
+                    if (lB && !isProfAvailable(lB.professorId, dia, tempo)) continue;
+
+                    daySlots[tempo] = lB;
+                    daySlots[t2] = lA;
+                    const newClashCount = detectAllClashes().length;
+                    if (newClashCount < postClashes.length) {
+                        affectedTurmas.add(turma.id);
+                        improved = true;
+                        break;
+                    } else {
+                        daySlots[tempo] = lA;
+                        daySlots[t2] = lB;
+                    }
+                }
+                if (improved) break;
+            }
+            if (improved) break;
+        }
+        if (!improved) break;
+        postClashes = detectAllClashes();
+    }
+
+    // FASE 3.5: CROSS-DAY REPAIR (Se restar qualquer choque, efetuar troca inter-dias segura)
+    let crossDayClashes = detectAllClashes();
+    if (crossDayClashes.length > 0) {
+        for (let clash of crossDayClashes) {
+            const { dia, tempo, professorId, turmas: clashTurmas } = clash;
+            for (let item of clashTurmas) {
+                const turma = state.turmas.find(t => t.id === item.turmaId);
+                if (!turma) continue;
+
+                const daySlots = state.timetable[turma.id][dia];
+                if (!daySlots) continue;
+                const lessonA = daySlots[tempo];
+                if (!lessonA || lessonA.professorId !== professorId) continue;
+
+                let crossDayResolved = false;
+                for (let otherDia of activeConfig.dias) {
+                    if (otherDia === dia) continue;
+                    const otherDaySlots = state.timetable[turma.id][otherDia];
+                    if (!otherDaySlots) continue;
+
+                    const kOther = otherDaySlots.filter(s => s !== null).length;
+                    for (let otherTempo = 0; otherTempo < kOther; otherTempo++) {
+                        if (isSlotDisabled(turma, otherDia, otherTempo)) continue;
+                        const lessonB = otherDaySlots[otherTempo];
+                        if (!lessonB) continue;
+
+                        if (isProfAvailable(lessonA.professorId, otherDia, otherTempo) &&
+                            isProfFreeInOtherTurmas(lessonA.professorId, otherDia, otherTempo, turma.id) &&
+                            isProfAvailable(lessonB.professorId, dia, tempo) &&
+                            isProfFreeInOtherTurmas(lessonB.professorId, dia, tempo, turma.id)) {
+
+                            const discA = discMap.get(lessonA.disciplinaId);
+                            const discB = discMap.get(lessonB.disciplinaId);
+                            const maxA = discA && discA.maxAulasPorDia ? discA.maxAulasPorDia : 2;
+                            const maxB = discB && discB.maxAulasPorDia ? discB.maxAulasPorDia : 2;
+
+                            const countAInOtherDia = otherDaySlots.filter(s => s && s.disciplinaId === lessonA.disciplinaId).length;
+                            const countBInDia = daySlots.filter(s => s && s.disciplinaId === lessonB.disciplinaId).length;
+
+                            if (countAInOtherDia < maxA && countBInDia < maxB) {
+                                daySlots[tempo] = lessonB;
+                                otherDaySlots[otherTempo] = lessonA;
+                                affectedTurmas.add(turma.id);
+                                totalClashesResolved++;
+                                crossDayResolved = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (crossDayResolved) break;
+                }
+                if (crossDayResolved) break;
+            }
+        }
+    }
+
+    // FASE 4: MINIMIZAR TEMPOS VAGOS DE PROFESSORES (Janelas Docentes)
+    state.professores.forEach(prof => {
+        activeConfig.dias.forEach(dia => {
+            state.turmas.forEach(turma => {
+                const daySlots = state.timetable[turma.id] ? state.timetable[turma.id][dia] : null;
+                if (!daySlots) return;
+                const k = daySlots.filter(s => s !== null).length;
+
+                for (let t1 = 0; t1 < k; t1++) {
+                    for (let t2 = t1 + 1; t2 < k; t2++) {
+                        const l1 = daySlots[t1];
+                        const l2 = daySlots[t2];
+                        if (!l1 || !l2) continue;
+                        if (l1.professorId === prof.id || l2.professorId === prof.id) {
+                            if (isProfAvailable(l1.professorId, dia, t2) && isProfAvailable(l2.professorId, dia, t1)) {
+                                daySlots[t1] = l2;
+                                daySlots[t2] = l1;
+                                if (detectAllClashes().length > 0) {
+                                    daySlots[t1] = l1;
+                                    daySlots[t2] = l2;
+                                } else {
+                                    affectedTurmas.add(turma.id);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    });
+
+    // FASE 5: SALVAR TODAS AS TURMAS AFETADAS NO LOCALSTORAGE
+    affectedTurmas.forEach(tId => {
+        if (state.timetable[tId]) {
+            localStorage.setItem(getSchoolKey(`timetable_${tId}`), JSON.stringify(state.timetable[tId]));
+        }
+    });
+    saveToStorage();
+
+    renderHorariosGrid();
+    auditAndHighlightClashes();
+
+    const finalClashes = detectAllClashes().length;
+    const finalGaps = countTurmaGaps();
+
+    return {
+        affectedTurmasCount: affectedTurmas.size,
+        totalGapsClosed,
+        totalClashesResolved,
+        finalClashes,
+        finalGaps
+    };
+}
+
+// Botão Retirar Tempos Vagos
 document.getElementById('btn-compact-timetable').addEventListener('click', () => {
     const currentTurmaId = selectTimetableTurma.value;
     if (!currentTurmaId) {
@@ -3245,68 +3781,39 @@ document.getElementById('btn-compact-timetable').addEventListener('click', () =>
         return;
     }
     
-    if (!state.timetable[currentTurmaId]) return;
-    
-    let changed = false;
-    let conflictsSkipped = 0;
+    showGenerationMessage('Retirando tempos vagos e coordenando horários com as demais turmas...', 'info');
 
-    activeConfig.dias.forEach(dia => {
-        const daySchedule = state.timetable[currentTurmaId][dia];
-        if (daySchedule && Array.isArray(daySchedule)) {
-            for (let tempo = 0; tempo < activeConfig.tempos; tempo++) {
-                if (daySchedule[tempo] === null) {
-                    for (let nextTempo = tempo + 1; nextTempo < activeConfig.tempos; nextTempo++) {
-                        const candidateLesson = daySchedule[nextTempo];
-                        if (candidateLesson) {
-                            const prof = state.professores.find(p => p.id === candidateLesson.professorId);
-                            
-                            // 1. Validar disponibilidade do professor no tempo antecipado
-                            let isAvailable = true;
-                            if (prof && prof.disponibilidade && prof.disponibilidade[dia]) {
-                                isAvailable = prof.disponibilidade[dia].includes(tempo);
-                            }
-
-                            // 2. Validar se o professor já leciona para outra turma neste tempo
-                            let hasClash = false;
-                            if (isAvailable && prof) {
-                                hasClash = Object.entries(state.timetable).some(([otherId, otherAgenda]) => {
-                                    if (otherId === currentTurmaId) return false;
-                                    const otherSlot = otherAgenda[dia] ? otherAgenda[dia][tempo] : null;
-                                    return otherSlot && otherSlot.professorId === prof.id;
-                                });
-                            }
-
-                            if (isAvailable && !hasClash) {
-                                daySchedule[tempo] = candidateLesson;
-                                daySchedule[nextTempo] = null;
-                                changed = true;
-                            } else {
-                                conflictsSkipped++;
-                            }
-                            break;
-                        }
-                    }
-                }
+    setTimeout(() => {
+        const res = smartCompactAndResolveTimetable(currentTurmaId);
+        if (res.affectedTurmasCount > 0) {
+            if (res.finalClashes === 0 && res.finalGaps === 0) {
+                showGenerationMessage(`Grade compactada com sucesso! ${res.affectedTurmasCount} turma(s) sincronizada(s) e salvas. Zero tempos vagos e zero choques!`, 'success');
+            } else if (res.finalClashes > 0) {
+                showGenerationMessage(`Tempos vagos compactados em ${res.affectedTurmasCount} turma(s). Resta(m) ${res.finalClashes} choque(s) devido a restrições rígidas de disponibilidade docente.`, 'warning');
+            } else {
+                showGenerationMessage(`Tempos vagos retirados e horários salvos para ${res.affectedTurmasCount} turma(s)!`, 'success');
             }
-        }
-    });
-    
-    if (changed) {
-        localStorage.setItem(getSchoolKey(`timetable_${currentTurmaId}`), JSON.stringify(state.timetable[currentTurmaId]));
-        renderHorariosGrid();
-        if (conflictsSkipped > 0) {
-            showGenerationMessage(`Tempos vagos compactados! (${conflictsSkipped} aulas mantidas para evitar choques ou respeitar disponibilidades).`, 'warning');
         } else {
-            showGenerationMessage('Tempos vagos retirados e horários salvos com sucesso!', 'success');
+            showGenerationMessage('Não há tempos vagos ou choques a retirar nas turmas.', 'info');
         }
-    } else {
-        if (conflictsSkipped > 0) {
-            showGenerationMessage('Não foi possível adiantar as aulas devido a choques com outras turmas ou indisponibilidade dos docentes.', 'danger');
-        } else {
-            showGenerationMessage('Não há tempos vagos para retirar na turma selecionada.', 'info');
-        }
-    }
+    }, 50);
 });
+
+// Botão do Banner: Corrigir Todos os Choques
+const btnFixClashes = document.getElementById('btn-fix-all-clashes');
+if (btnFixClashes) {
+    btnFixClashes.addEventListener('click', () => {
+        showGenerationMessage('Corrigindo choques de horário e compactando a grade de todas as turmas...', 'info');
+        setTimeout(() => {
+            const res = smartCompactAndResolveTimetable(null);
+            if (res.finalClashes === 0) {
+                showGenerationMessage('Todos os choques de horário foram corrigidos e as turmas compactadas com sucesso!', 'success');
+            } else {
+                showGenerationMessage(`Ajuste coordenado executado. Restam ${res.finalClashes} conflitos devido a restrições estritas de disponibilidade docente.`, 'warning');
+            }
+        }, 50);
+    });
+}
 
 document.getElementById('btn-reset-timetable').addEventListener('click', () => {
     const currentTurmaId = selectTimetableTurma.value;
@@ -3358,6 +3865,9 @@ function generateAllTimetablesFlow() {
                 localStorage.setItem(getSchoolKey(`timetable_${t.id}`), JSON.stringify(result.timetable[t.id]));
             }
         });
+
+        // Pós-processamento e garantia de compacidade e zero choques
+        smartCompactAndResolveTimetable(null);
 
         saveToStorage();
         renderTurmas();
@@ -3414,6 +3924,7 @@ function generateTimetableFlow() {
                 localStorage.setItem(getSchoolKey(`timetable_${t.id}`), JSON.stringify(result.timetable[t.id]));
             }
         });
+        smartCompactAndResolveTimetable(currentTurmaId);
         saveToStorage();
         renderTurmas();
         renderHorariosGrid();
@@ -3425,6 +3936,7 @@ function generateTimetableFlow() {
                 localStorage.setItem(getSchoolKey(`timetable_${t.id}`), JSON.stringify(result.timetable[t.id]));
             }
         });
+        smartCompactAndResolveTimetable(currentTurmaId);
         saveToStorage();
         renderTurmas();
         renderHorariosGrid();
@@ -3627,37 +4139,59 @@ function renderHorariosGrid() {
                     const disc = state.disciplinas.find(d => d.id === aula.disciplinaId);
                     const prof = state.professores.find(p => p.id === aula.professorId);
                     
-                    const card = createLessonCard(aula.disciplinaId, disc ? disc.nome : 'Matéria', aula.professorId, prof ? prof.nome : 'Prof.', currentTurmaId, dia, tempo);
+                    // Identificar se há choque de horário para este professor neste dia e tempo
+                    const clashingTurmas = [];
+                    Object.entries(state.timetable).forEach(([otherId, otherAgenda]) => {
+                        if (otherId === currentTurmaId) return;
+                        const otherSlot = otherAgenda[dia] ? otherAgenda[dia][tempo] : null;
+                        if (otherSlot && otherSlot.professorId === aula.professorId) {
+                            const otherT = state.turmas.find(t => t.id === otherId);
+                            clashingTurmas.push(otherT ? otherT.nome : otherId);
+                        }
+                    });
+
+                    if (clashingTurmas.length > 0) {
+                        cell.classList.add('cell-clash');
+                    }
+
+                    const card = createLessonCard(aula.disciplinaId, disc ? disc.nome : 'Matéria', aula.professorId, prof ? prof.nome : 'Prof.', currentTurmaId, dia, tempo, clashingTurmas);
                     cell.appendChild(card);
                 }
             } else {
                 // Visualização do Professor
                 cell.setAttribute('data-professor-id', currentProfessorId);
                 
-                // Apenas mostrar as aulas que este professor dá nas diferentes turmas
-                let aulaEncontrada = null;
-                let turmaDaAulaId = null;
-
+                // Buscar todas as turmas onde este professor leciona neste tempo
+                const aulasEncontradas = [];
                 Object.entries(state.timetable).forEach(([tId, tAgenda]) => {
                     const slot = tAgenda[dia] ? tAgenda[dia][tempo] : null;
                     if (slot && slot.professorId === currentProfessorId) {
-                        aulaEncontrada = slot;
-                        turmaDaAulaId = tId;
+                        const disc = state.disciplinas.find(d => d.id === slot.disciplinaId);
+                        const turma = state.turmas.find(t => t.id === tId);
+                        aulasEncontradas.push({ slot, disc, turma });
                     }
                 });
 
-                if (aulaEncontrada) {
-                    const disc = state.disciplinas.find(d => d.id === aulaEncontrada.disciplinaId);
-                    const turma = state.turmas.find(t => t.id === turmaDaAulaId);
-                    
-                    const card = document.createElement('div');
-                    card.className = 'lesson-card lesson-card-1';
-                    card.style.cursor = 'default'; // Não arrastável na visualização do professor
-                    card.innerHTML = `
-                        <div class="lesson-subject">${disc ? disc.nome : 'Sem Nome'}</div>
-                        <div class="lesson-teacher"><i class="fa-solid fa-users"></i> ${turma ? turma.nome : 'Turma'}</div>
-                    `;
-                    cell.appendChild(card);
+                if (aulasEncontradas.length > 0) {
+                    if (aulasEncontradas.length > 1) {
+                        cell.classList.add('cell-clash');
+                    }
+                    aulasEncontradas.forEach(({ slot, disc, turma }) => {
+                        const card = document.createElement('div');
+                        card.className = `lesson-card lesson-card-${(slot.disciplinaId.charCodeAt(1) % 8) + 1}`;
+                        card.style.cursor = 'default';
+                        let clashBadgeHtml = '';
+                        if (aulasEncontradas.length > 1) {
+                            card.classList.add('card-clash-warning');
+                            clashBadgeHtml = `<div class="clash-badge"><i class="fa-solid fa-triangle-exclamation"></i> CHOQUE (${aulasEncontradas.length} turmas)</div>`;
+                        }
+                        card.innerHTML = `
+                            <div class="lesson-subject">${disc ? disc.nome : 'Sem Nome'}</div>
+                            <div class="lesson-teacher"><i class="fa-solid fa-users"></i> ${turma ? turma.nome : 'Turma'}</div>
+                            ${clashBadgeHtml}
+                        `;
+                        cell.appendChild(card);
+                    });
                 } else {
                     // Verificar se o professor está disponível neste horário
                     const profObj = state.professores.find(p => p.id === currentProfessorId);
@@ -3673,10 +4207,13 @@ function renderHorariosGrid() {
             root.appendChild(cell);
         });
     }
+
+    // Atualizar auditoria de choques
+    auditAndHighlightClashes();
 }
 
 // Criar o cartão arrastável
-function createLessonCard(disciplinaId, disciplinaNome, professorId, professorNome, turmaId, dia, tempo) {
+function createLessonCard(disciplinaId, disciplinaNome, professorId, professorNome, turmaId, dia, tempo, clashingTurmas = []) {
     const card = document.createElement('div');
     card.className = `lesson-card lesson-card-${(disciplinaId.charCodeAt(1) % 8) + 1}`;
     card.setAttribute('draggable', 'true');
@@ -3686,9 +4223,16 @@ function createLessonCard(disciplinaId, disciplinaNome, professorId, professorNo
     card.setAttribute('data-from-dia', dia);
     card.setAttribute('data-from-tempo', tempo);
 
+    let clashBadgeHtml = '';
+    if (clashingTurmas && clashingTurmas.length > 0) {
+        card.classList.add('card-clash-warning');
+        clashBadgeHtml = `<div class="clash-badge" title="Choque com ${clashingTurmas.join(', ')}"><i class="fa-solid fa-triangle-exclamation"></i> Choque: ${clashingTurmas.join(', ')}</div>`;
+    }
+
     card.innerHTML = `
         <div class="lesson-subject">${disciplinaNome}</div>
         <div class="lesson-teacher" title="${professorNome}"><i class="fa-solid fa-user-tie"></i> ${professorNome}</div>
+        ${clashBadgeHtml}
     `;
 
     // Eventos de Drag
