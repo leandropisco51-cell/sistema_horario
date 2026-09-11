@@ -73,6 +73,107 @@ const JOAO_DE_DEUS_CONFIG = {
 let activeConfig = DEFAULT_CONFIG;
 
 // ----------------------------------------------------
+// REGRAS PEDAGÓGICAS: DISCIPLINA TÉCNICA E DIAS EXCLUSIVOS
+// ----------------------------------------------------
+
+function isTechnicalDiscipline(disc, turma) {
+    if (!disc) return false;
+    if (disc.diaExclusivo === 'livre') return false;
+    if (disc.diaExclusivo === 4 || disc.diaExclusivo === '4') return true;
+    if (disc.tipo === 'tecnica' || disc.tipo === 'tecnico' || disc.isTecnica) return true;
+
+    const nome = (disc.nome || '').trim().toLowerCase();
+    if (!nome) return false;
+
+    // Palavras-chave completas para o Ensino Médio Técnico (1º, 2º e 3º ano)
+    const technicalKeywords = [
+        'técnic', 'tecnic',
+        'banco de dados',
+        'redes',
+        'programação', 'programacao',
+        'sistemas operacionais', 'sistema operacional',
+        'análise e projeto', 'analise e projeto',
+        'algoritmo', 'estrutura de dados',
+        'web design', 'webdesign',
+        'design gráfico', 'design grafico',
+        'informática', 'informatica',
+        'gestão', 'gestao',
+        'administração', 'administracao',
+        'contabilidade', 'custos',
+        'empreendedorismo',
+        'projeto integrador', 'projeto final', 'tcc',
+        'legislação empresarial', 'legislacao empresarial',
+        'segurança do trabalho', 'seguranca do trabalho',
+        'saúde e segurança', 'saude e seguranca',
+        'estatística básica', 'estatistica basica', 'estatística aplicada', 'estatistica aplicada',
+        'matemática financeira', 'matematica financeira',
+        'marketing',
+        'hardware', 'manutenção', 'manutencao',
+        'robótica', 'robotica',
+        'automação', 'automacao'
+    ];
+
+    for (let i = 0; i < technicalKeywords.length; i++) {
+        if (nome.includes(technicalKeywords[i])) return true;
+    }
+
+    // Se a turma pertencer ao Ensino Médio (1º, 2º ou 3º ano / seg_medio),
+    // qualquer disciplina que não seja da Base Comum da BNCC é disciplina técnica
+    const isMedioTurma = turma && (
+        turma.segmentoId === 'seg_medio' ||
+        (turma.nome && (
+            turma.nome.toLowerCase().includes('médio') ||
+            turma.nome.toLowerCase().includes('medio') ||
+            turma.nome.toLowerCase().includes('em') ||
+            turma.nome.toLowerCase().includes('ta') ||
+            turma.nome.toLowerCase().includes('ti') ||
+            /^[123]\s*[ºoªa]?\s*(ano|série|serie)/i.test(turma.nome) ||
+            /^[123]00[1-9]/i.test(turma.nome)
+        ))
+    );
+
+    if (isMedioTurma) {
+        const baseComumKeywords = [
+            'português', 'portugues', 'língua portuguesa', 'lingua portuguesa', 'gramática', 'gramatica', 'literatura', 'redação', 'redacao',
+            'matemática a', 'matematica a', 'matemática b', 'matematica b', 'matemática', 'matematica',
+            'história', 'historia',
+            'geografia',
+            'física', 'fisica',
+            'química', 'quimica',
+            'biologia', 'ciências', 'ciencias',
+            'inglês', 'ingles', 'língua inglesa', 'lingua inglesa', 'espanhol',
+            'educação física', 'educacao fisica', 'ed. física', 'ed. fisica', 'ed física', 'ed fisica',
+            'artes', 'arte', 'artes / projeto de vida', 'projeto de vida',
+            'filosofia', 'sociologia', 'filosofia/sociologia', 'ensino religioso'
+        ];
+
+        const isBaseComum = baseComumKeywords.some(bk => {
+            if (nome === bk) return true;
+            if (nome.startsWith(bk) && !nome.includes('financeira')) return true;
+            return false;
+        });
+
+        if (!isBaseComum) return true;
+    }
+
+    return false;
+}
+
+function getAllowedDaysForDisciplina(disc, turma) {
+    const allDias = (activeConfig && activeConfig.dias) ? activeConfig.dias : [2, 3, 4, 5, 6];
+    if (!disc) return allDias;
+    if (disc.diaExclusivo === 'livre') return allDias;
+    if (disc.diaExclusivo !== undefined && disc.diaExclusivo !== null && disc.diaExclusivo !== '') {
+        const d = parseInt(disc.diaExclusivo, 10);
+        if (allDias.includes(d)) return [d];
+    }
+    if (isTechnicalDiscipline(disc, turma)) {
+        if (allDias.includes(4)) return [4];
+    }
+    return allDias;
+}
+
+// ----------------------------------------------------
 // MULTI-TENANT AUTHENTICATION & SESSION MANAGEMENT
 // ----------------------------------------------------
 
@@ -194,14 +295,19 @@ const AuthManager = {
                 localStorage.setItem(`chronos_${joaoSchool.id}_disciplinas`, JSON.stringify(joaoDiscs));
             }
 
-            // Sincronizar disciplinas técnicas existentes para Quarta-feira (dia 4)
+            // Sincronizar disciplinas técnicas existentes (1º, 2º e 3º ano) para Quarta-feira (dia 4)
+            let updatedJoao = false;
             joaoDiscs.forEach(d => {
-                const n = (d.nome || '').toLowerCase();
-                if (n.includes('técnic') || n.includes('tecnic')) {
-                    d.diaExclusivo = 4;
+                if (isTechnicalDiscipline(d)) {
+                    if (d.diaExclusivo !== 4) {
+                        d.diaExclusivo = 4;
+                        updatedJoao = true;
+                    }
                 }
             });
-            localStorage.setItem(`chronos_${joaoSchool.id}_disciplinas`, JSON.stringify(joaoDiscs));
+            if (updatedJoao) {
+                localStorage.setItem(`chronos_${joaoSchool.id}_disciplinas`, JSON.stringify(joaoDiscs));
+            }
         }
     },
 
@@ -2575,13 +2681,19 @@ function initData() {
             bilingue.maxAulasPorDia = 1;
         }
 
-        // Assegurar que disciplinas técnicas do Ensino Médio sejam marcadas com diaExclusivo = 4 (Quarta-feira)
+        // Assegurar que disciplinas técnicas do Ensino Médio (1º, 2º e 3º ano) sejam marcadas com diaExclusivo = 4 (Quarta-feira)
+        let updatedAny = false;
         state.disciplinas.forEach(d => {
-            const n = (d.nome || '').toLowerCase();
-            if (n.includes('técnic') || n.includes('tecnic')) {
-                d.diaExclusivo = 4;
+            if (isTechnicalDiscipline(d)) {
+                if (d.diaExclusivo !== 4) {
+                    d.diaExclusivo = 4;
+                    updatedAny = true;
+                }
             }
         });
+        if (updatedAny) {
+            saveToStorage();
+        }
     }
 
     // Verificação preventiva e auto-correção de choques/tempos vagos ao carregar os dados
@@ -2686,9 +2798,9 @@ const formDisciplina = document.getElementById('form-disciplina');
 const inputNomeDisciplina = document.getElementById('input-disciplina-nome');
 if (inputNomeDisciplina) {
     inputNomeDisciplina.addEventListener('input', () => {
-        const val = inputNomeDisciplina.value.toLowerCase();
+        const val = inputNomeDisciplina.value;
         const selDia = document.getElementById('select-disciplina-dia-exclusivo');
-        if (selDia && (val.includes('técnic') || val.includes('tecnic'))) {
+        if (selDia && isTechnicalDiscipline({ nome: val })) {
             selDia.value = '4'; // Quarta-feira (Ensino Técnico)
         }
     });
@@ -2713,7 +2825,10 @@ formDisciplina.addEventListener('submit', (e) => {
     const selMax = document.getElementById('select-disciplina-max-diario');
     const maxAulasPorDia = selMax ? (parseInt(selMax.value, 10) || 2) : 2;
     const selDia = document.getElementById('select-disciplina-dia-exclusivo');
-    const diaExclusivo = selDia && selDia.value ? parseInt(selDia.value, 10) : null;
+    let diaExclusivo = null;
+    if (selDia && selDia.value !== '') {
+        diaExclusivo = selDia.value === 'livre' ? 'livre' : parseInt(selDia.value, 10);
+    }
 
     if (id) {
         // Editar
@@ -2756,11 +2871,11 @@ function renderDisciplinas() {
             ? `<span class="badge" style="background-color: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); margin-left: 6px; font-size: 0.72rem;"><i class="fa-solid fa-calendar-day"></i> 1 aula/dia</span>`
             : '';
 
-        const isTecnica = (disc.diaExclusivo === 4 || disc.diaExclusivo === '4') || (disc.nome || '').toLowerCase().includes('técnic') || (disc.nome || '').toLowerCase().includes('tecnic');
+        const isTecnica = isTechnicalDiscipline(disc);
         let badgeDia = '';
         if (isTecnica) {
             badgeDia = `<span class="badge" style="background-color: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); margin-left: 6px; font-size: 0.72rem;"><i class="fa-solid fa-microchip"></i> Quarta-feira (Técnico)</span>`;
-        } else if (disc.diaExclusivo) {
+        } else if (disc.diaExclusivo && disc.diaExclusivo !== 'livre') {
             const nomeDia = activeConfig.diasNomes ? activeConfig.diasNomes[disc.diaExclusivo] : `Dia ${disc.diaExclusivo}`;
             badgeDia = `<span class="badge badge-info" style="margin-left: 6px; font-size: 0.72rem;"><i class="fa-solid fa-calendar-week"></i> Exclusivo: ${nomeDia}</span>`;
         }
@@ -2790,7 +2905,17 @@ window.editDisciplina = function(id) {
     const selMax = document.getElementById('select-disciplina-max-diario');
     if (selMax) selMax.value = (disc.maxAulasPorDia !== undefined) ? String(disc.maxAulasPorDia) : '2';
     const selDia = document.getElementById('select-disciplina-dia-exclusivo');
-    if (selDia) selDia.value = (disc.diaExclusivo !== undefined && disc.diaExclusivo !== null) ? String(disc.diaExclusivo) : '';
+    if (selDia) {
+        if (disc.diaExclusivo === 'livre') {
+            selDia.value = 'livre';
+        } else if (disc.diaExclusivo !== undefined && disc.diaExclusivo !== null && disc.diaExclusivo !== '') {
+            selDia.value = String(disc.diaExclusivo);
+        } else if (isTechnicalDiscipline(disc)) {
+            selDia.value = '4';
+        } else {
+            selDia.value = '';
+        }
+    }
     modalDisciplina.classList.add('active');
 };
 
@@ -3743,19 +3868,8 @@ function smartCompactAndResolveTimetable(targetTurmaId = null) {
                             const discA = discMap.get(lessonA.disciplinaId);
                             const discB = discMap.get(lessonB.disciplinaId);
 
-                            const getDiscAllowed = (d) => {
-                                if (!d) return activeConfig.dias;
-                                if (d.diaExclusivo) {
-                                    const dd = parseInt(d.diaExclusivo, 10);
-                                    if (activeConfig.dias.includes(dd)) return [dd];
-                                }
-                                const n = (d.nome || '').toLowerCase();
-                                if (n.includes('técnic') || n.includes('tecnic')) return [4];
-                                return activeConfig.dias;
-                            };
-
-                            const allowedA = getDiscAllowed(discA);
-                            const allowedB = getDiscAllowed(discB);
+                            const allowedA = getAllowedDaysForDisciplina(discA, turma);
+                            const allowedB = getAllowedDaysForDisciplina(discB, turma);
                             if (!allowedA.includes(otherDia) || !allowedB.includes(dia)) continue;
 
                             const maxA = allowedA.length === 1 ? 6 : (discA && discA.maxAulasPorDia ? discA.maxAulasPorDia : 2);
@@ -4292,7 +4406,7 @@ function createLessonCard(disciplinaId, disciplinaNome, professorId, professorNo
     }
 
     const discObj = state.disciplinas.find(d => d.id === disciplinaId);
-    const isTecnicaCard = discObj && ((discObj.diaExclusivo === 4 || discObj.diaExclusivo === '4') || (discObj.nome || '').toLowerCase().includes('técnic') || (discObj.nome || '').toLowerCase().includes('tecnic'));
+    const isTecnicaCard = isTechnicalDiscipline(discObj, state.turmas.find(t => t.id === turmaId));
     const tecBadgeHtml = isTecnicaCard ? `<span style="font-size: 0.65rem; background: rgba(168, 85, 247, 0.25); color: #c084fc; padding: 1px 5px; border-radius: 4px; margin-left: 4px; font-weight: 600;"><i class="fa-solid fa-microchip"></i> Técnico</span>` : '';
 
     card.innerHTML = `
@@ -4368,17 +4482,12 @@ function moveLesson(dragData, targetTurmaId, targetDia, targetTempo) {
 
     // 1.1 Verificar restrição de dias exclusivos da disciplina (ex: Ensino Técnico na Quarta-feira)
     const disc = state.disciplinas.find(d => d.id === disciplinaId);
+    const currentTurma = state.turmas.find(t => t.id === targetTurmaId);
     if (disc) {
-        let allowedDays = activeConfig.dias;
-        if (disc.diaExclusivo !== undefined && disc.diaExclusivo !== null && disc.diaExclusivo !== '') {
-            const d = parseInt(disc.diaExclusivo, 10);
-            if (activeConfig.dias.includes(d)) allowedDays = [d];
-        } else if ((disc.nome || '').toLowerCase().includes('técnic') || (disc.nome || '').toLowerCase().includes('tecnic')) {
-            allowedDays = [4]; // Quarta-feira
-        }
+        const allowedDays = getAllowedDaysForDisciplina(disc, currentTurma);
         if (!allowedDays.includes(targetDia)) {
             const diaEsperado = activeConfig.diasNomes ? activeConfig.diasNomes[allowedDays[0]] : `dia ${allowedDays[0]}`;
-            showGenerationMessage(`Regra Pedagógica: A disciplina "${disc.nome}" deve ser ministrada exclusivamente na ${diaEsperado}!`, 'warning');
+            showGenerationMessage(`Regra Pedagógica: A disciplina "${disc.nome}" do Ensino Técnico deve ser ministrada exclusivamente na ${diaEsperado}!`, 'warning');
             return;
         }
     }
@@ -4388,16 +4497,10 @@ function moveLesson(dragData, targetTurmaId, targetDia, targetTempo) {
     if (existingSlot) {
         const existingDisc = state.disciplinas.find(d => d.id === existingSlot.disciplinaId);
         if (existingDisc) {
-            let allowedDaysEx = activeConfig.dias;
-            if (existingDisc.diaExclusivo !== undefined && existingDisc.diaExclusivo !== null && existingDisc.diaExclusivo !== '') {
-                const d = parseInt(existingDisc.diaExclusivo, 10);
-                if (activeConfig.dias.includes(d)) allowedDaysEx = [d];
-            } else if ((existingDisc.nome || '').toLowerCase().includes('técnic') || (existingDisc.nome || '').toLowerCase().includes('tecnic')) {
-                allowedDaysEx = [4];
-            }
+            const allowedDaysEx = getAllowedDaysForDisciplina(existingDisc, currentTurma);
             if (!allowedDaysEx.includes(fromDia)) {
                 const diaEsperado = activeConfig.diasNomes ? activeConfig.diasNomes[allowedDaysEx[0]] : `dia ${allowedDaysEx[0]}`;
-                showGenerationMessage(`Regra Pedagógica: A disciplina "${existingDisc.nome}" deve ser ministrada exclusivamente na ${diaEsperado}!`, 'warning');
+                showGenerationMessage(`Regra Pedagógica: A disciplina "${existingDisc.nome}" do Ensino Técnico deve ser ministrada exclusivamente na ${diaEsperado}!`, 'warning');
                 return;
             }
         }

@@ -86,22 +86,95 @@ class TimetableScheduler {
         return prof && prof.disponibilidade && prof.disponibilidade[dia] && prof.disponibilidade[dia].includes(tempo);
     }
 
-    isTecnica(disc) {
+    isTecnica(disc, turma) {
         if (!disc) return false;
+        if (disc.diaExclusivo === 'livre') return false;
         if (disc.diaExclusivo === 4 || disc.diaExclusivo === '4') return true;
-        if (disc.tipo === 'tecnica' || disc.isTecnica) return true;
-        const nome = (disc.nome || '').toLowerCase();
-        return nome.includes('técnic') || nome.includes('tecnic');
+        if (disc.tipo === 'tecnica' || disc.tipo === 'tecnico' || disc.isTecnica) return true;
+
+        const nome = (disc.nome || '').trim().toLowerCase();
+        if (!nome) return false;
+
+        const technicalKeywords = [
+            'técnic', 'tecnic',
+            'banco de dados',
+            'redes',
+            'programação', 'programacao',
+            'sistemas operacionais', 'sistema operacional',
+            'análise e projeto', 'analise e projeto',
+            'algoritmo', 'estrutura de dados',
+            'web design', 'webdesign',
+            'design gráfico', 'design grafico',
+            'informática', 'informatica',
+            'gestão', 'gestao',
+            'administração', 'administracao',
+            'contabilidade', 'custos',
+            'empreendedorismo',
+            'projeto integrador', 'projeto final', 'tcc',
+            'legislação empresarial', 'legislacao empresarial',
+            'segurança do trabalho', 'seguranca do trabalho',
+            'saúde e segurança', 'saude e seguranca',
+            'estatística básica', 'estatistica basica', 'estatística aplicada', 'estatistica aplicada',
+            'matemática financeira', 'matematica financeira',
+            'marketing',
+            'hardware', 'manutenção', 'manutencao',
+            'robótica', 'robotica',
+            'automação', 'automacao'
+        ];
+
+        for (let i = 0; i < technicalKeywords.length; i++) {
+            if (nome.includes(technicalKeywords[i])) return true;
+        }
+
+        const isMedioTurma = turma && (
+            turma.segmentoId === 'seg_medio' ||
+            (turma.nome && (
+                turma.nome.toLowerCase().includes('médio') ||
+                turma.nome.toLowerCase().includes('medio') ||
+                turma.nome.toLowerCase().includes('em') ||
+                turma.nome.toLowerCase().includes('ta') ||
+                turma.nome.toLowerCase().includes('ti') ||
+                /^[123]\s*[ºoªa]?\s*(ano|série|serie)/i.test(turma.nome) ||
+                /^[123]00[1-9]/i.test(turma.nome)
+            ))
+        );
+
+        if (isMedioTurma) {
+            const baseComumKeywords = [
+                'português', 'portugues', 'língua portuguesa', 'lingua portuguesa', 'gramática', 'gramatica', 'literatura', 'redação', 'redacao',
+                'matemática a', 'matematica a', 'matemática b', 'matematica b', 'matemática', 'matematica',
+                'história', 'historia',
+                'geografia',
+                'física', 'fisica',
+                'química', 'quimica',
+                'biologia', 'ciências', 'ciencias',
+                'inglês', 'ingles', 'língua inglesa', 'lingua inglesa', 'espanhol',
+                'educação física', 'educacao fisica', 'ed. física', 'ed. fisica', 'ed física', 'ed fisica',
+                'artes', 'arte', 'artes / projeto de vida', 'projeto de vida',
+                'filosofia', 'sociologia', 'filosofia/sociologia', 'ensino religioso'
+            ];
+
+            const isBaseComum = baseComumKeywords.some(bk => {
+                if (nome === bk) return true;
+                if (nome.startsWith(bk) && !nome.includes('financeira')) return true;
+                return false;
+            });
+
+            if (!isBaseComum) return true;
+        }
+
+        return false;
     }
 
     getAllowedDaysForDisciplina(disc, turma) {
         if (!disc) return this.dias;
+        if (disc.diaExclusivo === 'livre') return this.dias;
         if (disc.diaExclusivo !== undefined && disc.diaExclusivo !== null && disc.diaExclusivo !== '') {
             const d = parseInt(disc.diaExclusivo, 10);
             if (this.dias.includes(d)) return [d];
         }
-        if (this.isTecnica(disc)) {
-            // No Colégio João de Deus, as matérias do Ensino Técnico são exclusivamente na quarta-feira (dia 4)
+        if (this.isTecnica(disc, turma)) {
+            // No Colégio João de Deus, as matérias do Ensino Técnico (1º, 2º e 3º ano) são exclusivamente na quarta-feira (dia 4)
             if (this.dias.includes(4)) return [4];
         }
         return this.dias;

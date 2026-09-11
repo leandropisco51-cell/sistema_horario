@@ -596,15 +596,16 @@
                     <div class="form-group">
                         <label for="select-disciplina-dia-exclusivo"><i class="fa-solid fa-calendar-week"></i> Alocação na Semana</label>
                         <select id="select-disciplina-dia-exclusivo" class="form-control">
-                            <option value="">Livre / Distribuir na semana (Padrão)</option>
+                            <option value="">Automático / Conforme Regras Pedagógicas</option>
                             <option value="4">Quarta-feira (Exclusivo - Ensino Técnico)</option>
+                            <option value="livre">Livre / Qualquer dia (Desativar Quarta técnica para esta matéria)</option>
                             <option value="2">Segunda-feira (Exclusivo)</option>
                             <option value="3">Terça-feira (Exclusivo)</option>
                             <option value="5">Quinta-feira (Exclusivo)</option>
                             <option value="6">Sexta-feira (Exclusivo)</option>
                         </select>
                         <small style="color: var(--text-muted); font-size: 0.74rem; display: block; margin-top: 4px;">
-                            <i class="fa-solid fa-circle-info"></i> No Colégio João de Deus, as matérias do Ensino Técnico são ministradas exclusivamente às quartas-feiras.
+                            <i class="fa-solid fa-circle-info"></i> No Colégio João de Deus, as matérias do Ensino Técnico (1º, 2º e 3º ano) são ministradas exclusivamente às quartas-feiras.
                         </small>
                     </div>
                     <div class="modal-actions">
@@ -848,7 +849,7 @@
     </div>
 
     <!-- JS Files -->
-    <script src="scheduler.js?v=2.0"></script>
-    <script src="app.js?v=2.0"></script>
+    <script src="scheduler.js?v=2.1"></script>
+    <script src="app.js?v=2.1"></script>
 </body>
 </html>
